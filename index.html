@@ -58,8 +58,18 @@ function formatMoney(n, currency, decimals=false) {
   return new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"CZK",maximumFractionDigits:fd}).format(n);
 }
 function formatCZK(n){return formatMoney(n,"CZK");}
-const STORAGE_KEY = "wealthflow_v5";
-function loadData(){try{const r=localStorage.getItem(STORAGE_KEY);return r?JSON.parse(r):null;}catch{return null;}}
+const STORAGE_KEY = "wealthflow_v1";
+function loadData(){
+  try{
+    let r=localStorage.getItem(STORAGE_KEY);
+    if(r) return JSON.parse(r);
+    for(const old of ["wealthflow_v4","wealthflow_v3","wealthflow_v2"]){
+      r=localStorage.getItem(old);
+      if(r){const data=JSON.parse(r);localStorage.setItem(STORAGE_KEY,JSON.stringify(data));return data;}
+    }
+    return null;
+  }catch{return null;}
+}
 function saveData(d){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(d));}catch{}}
 function getCat(id){return ALL_CATEGORIES.find(c=>c.id===id)||{label:"Ostatní",icon:"📦",color:"#94A3B8"};}
 function parseAmount(v){return parseFloat(String(v).replace(",","."))||0;}
