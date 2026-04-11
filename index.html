@@ -235,7 +235,7 @@ function App(){
               value={row.amount}
               onChange={e=>updateFixedRow(type,row.id,"amount",e.target.value)}
               style={{width:80,flexShrink:0,border:"1.5px solid #E2E8F0",borderRadius:8,padding:"7px 8px",fontSize:13,outline:"none",background:"#F8FAFC",textAlign:"right"}}
-              inputMode="decimal"
+              
             />
             <button onClick={()=>removeFixedRow(type,row.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:"#CBD5E1",flexShrink:0,padding:"0 2px"}}>🗑</button>
           </div>
@@ -437,7 +437,7 @@ function App(){
             </div>
             <div style={{marginTop:14}}>
               <div style={s.lbl}>Částka (Kč)</div>
-              <input style={s.inp} type="text" inputMode="decimal" placeholder="0,00" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
+              <input style={s.inp} type="text" placeholder="0,00" value={form.amount} onChange={e=>setForm(f=>({...f,amount:e.target.value}))}/>
             </div>
             <div style={{marginTop:14}}>
               <div style={s.lbl}>Kategorie</div>
@@ -500,11 +500,11 @@ function App(){
             <div style={{display:"flex",gap:10,marginTop:14}}>
               <div style={{flex:1}}>
                 <div style={s.lbl}>Cena za kus ({invForm.currency})</div>
-                <input style={s.inp} type="text" inputMode="decimal" placeholder="0,00" value={invForm.amount} onChange={e=>setInvForm(f=>({...f,amount:e.target.value}))}/>
+                <input style={s.inp} type="text" placeholder="0,00" value={invForm.amount} onChange={e=>setInvForm(f=>({...f,amount:e.target.value}))}/>
               </div>
               <div style={{flex:1}}>
                 <div style={s.lbl}>Množství (ks)</div>
-                <input style={s.inp} type="text" inputMode="decimal" placeholder="1" value={invForm.qty} onChange={e=>setInvForm(f=>({...f,qty:e.target.value}))}/>
+                <input style={s.inp} type="text" placeholder="1" value={invForm.qty} onChange={e=>setInvForm(f=>({...f,qty:e.target.value}))}/>
               </div>
             </div>
             {invForm.amount&&(<div style={{marginTop:8,textAlign:"center",fontSize:13,color:"#6366F1",fontWeight:700}}>Celkem: {formatMoney(parseAmount(invForm.amount)*(parseAmount(invForm.qty)||1),invForm.currency,true)}</div>)}
@@ -527,7 +527,7 @@ function App(){
             </div>
             <div style={{fontSize:13,color:"#64748B",marginBottom:14,lineHeight:1.6}}>Zadej svůj aktuální majetek jako výchozí bod.</div>
             <div style={s.lbl}>Počáteční hodnota (Kč)</div>
-            <input style={s.inp} type="text" inputMode="decimal" placeholder="0" value={nwInput} onChange={e=>setNwInput(e.target.value)}/>
+            <input style={s.inp} type="text" placeholder="0" value={nwInput} onChange={e=>setNwInput(e.target.value)}/>
             <button style={s.pbtn()} onClick={()=>{setNetWorthStart(parseAmount(nwInput));setShowNWEdit(false);}}>Uložit</button>
           </div>
         </div>
