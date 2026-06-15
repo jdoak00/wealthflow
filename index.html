@@ -14,6 +14,7 @@
     body{background:#1E3A5F;font-family:'DM Sans',sans-serif;}
     #root{max-width:430px;margin:0 auto;}
     input,textarea{-webkit-user-select:text;user-select:text;}
+    input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1) opacity(0.5);}
   </style>
 </head>
 <body>
@@ -77,7 +78,6 @@ function fmtDate(dateStr){
   return `${d.getDate()}. ${MONTHS_CZ[d.getMonth()]} ${d.getFullYear()} (${DAYS_CZ[d.getDay()]})`;
 }
 
-// SVG peněženka
 function WalletIcon({size=22,color="#fff"}){
   return(
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -88,41 +88,85 @@ function WalletIcon({size=22,color="#fff"}){
   );
 }
 
-function PieChart({data,size=150}){
+// ── Interaktivní koláčový graf ──────────────────────────────────────────────
+function PieChart({data, size=150, selected, onSelect}){
   const total=data.reduce((s,d)=>s+d.value,0);
-  if(total===0) return <div style={{textAlign:"center",color:"#94A3B8",padding:20,fontSize:13}}>Žádné výdaje</div>;
-  const cx=size/2,cy=size/2,r=size/2-6;
+  if(total===0) return <div style={{textAlign:"center",color:"rgba(255,255,255,0.3)",padding:20,fontSize:13}}>Žádné výdaje</div>;
+  const cx=size/2, cy=size/2, r=size/2-8;
   let angle=-Math.PI/2;
-  const slices=data.filter(d=>d.value>0).map(d=>{
+  const slices=data.filter(d=>d.value>0).map((d,i)=>{
     const sweep=(d.value/total)*2*Math.PI;
-    const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
+    const x1=cx+r*Math.cos(angle), y1=cy+r*Math.sin(angle);
     angle+=sweep;
-    const x2=cx+r*Math.cos(angle),y2=cy+r*Math.sin(angle);
+    const x2=cx+r*Math.cos(angle), y2=cy+r*Math.sin(angle);
     const large=sweep>Math.PI?1:0;
-    return{...d,path:`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z`};
+    // offset pro zvýraznění
+    const midAngle=angle-sweep/2;
+    const ox=Math.cos(midAngle)*5, oy=Math.sin(midAngle)*5;
+    const isSelected=selected===d.id;
+    return{...d,i,
+      path:`M${cx+( isSelected?ox:0)},${cy+(isSelected?oy:0)} L${x1+(isSelected?ox:0)},${y1+(isSelected?oy:0)} A${r},${r} 0 ${large},1 ${x2+(isSelected?ox:0)},${y2+(isSelected?oy:0)} Z`,
+      midAngle,ox,oy,isSelected};
   });
   return(
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {slices.map((s,i)=><path key={i} d={s.path} fill={s.color} stroke="#1a2e4a" strokeWidth={2}/>)}
-      <circle cx={cx} cy={cy} r={r*0.42} fill="#1a3a5c"/>
-      <text x={cx} y={cy-5} textAnchor="middle" fontSize={9} fill="#93C5FD" fontFamily="DM Sans">Výdaje</text>
-      <text x={cx} y={cy+9} textAnchor="middle" fontSize={10} fill="#fff" fontWeight="700" fontFamily="DM Sans">{formatCZK(total)}</text>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{overflow:"visible"}}>
+      {slices.map((s,i)=>(
+        <path key={i} d={s.path} fill={s.color}
+          stroke={s.isSelected?"#fff":"#1a2e4a"}
+          strokeWidth={s.isSelected?2.5:1.5}
+          style={{cursor:"pointer",opacity:selected&&!s.isSelected?0.45:1,transition:"opacity 0.2s"}}
+          onClick={()=>onSelect(s.isSelected?null:s.id)}
+        />
+      ))}
+      <circle cx={cx} cy={cy} r={r*0.42} fill="#1a3a5c" style={{pointerEvents:"none"}}/>
+      <text x={cx} y={cy-6} textAnchor="middle" fontSize={9} fill="#93C5FD" fontFamily="DM Sans" style={{pointerEvents:"none"}}>Výdaje</text>
+      <text x={cx} y={cy+8} textAnchor="middle" fontSize={10} fill="#fff" fontWeight="700" fontFamily="DM Sans" style={{pointerEvents:"none"}}>{formatCZK(total)}</text>
     </svg>
   );
 }
 
-// Step wizard pro transakci
-function AddTxWizard({onClose,onSave,editTx,now}){
+// ── Stabilní uncontrolled input pro Fixed výdaje ────────────────────────────
+function StableInput({initialValue, onCommit, placeholder, isAmount}){
+  const ref=useRef(null);
+  // Synchronizuj jen pokud se hodnota zvenku změní (např. po smazání řádku)
+  useEffect(()=>{
+    if(ref.current && ref.current.value !== String(initialValue)){
+      ref.current.value = String(initialValue);
+    }
+  },[initialValue]);
+  return(
+    <input
+      ref={ref}
+      defaultValue={initialValue}
+      onBlur={e=>onCommit(e.target.value)}
+      onChange={()=>{/* nechej klávesnici živou */}}
+      placeholder={placeholder}
+      inputMode={isAmount?"decimal":"text"}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck="false"
+      style={isAmount
+        ?{width:80,flexShrink:0,border:"1.5px solid rgba(147,197,253,0.25)",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"rgba(255,255,255,0.07)",textAlign:"right",color:"#fff",fontFamily:"'DM Sans',sans-serif"}
+        :{flex:"1 1 0",minWidth:0,border:"1.5px solid rgba(147,197,253,0.25)",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"rgba(255,255,255,0.07)",color:"#fff",fontFamily:"'DM Sans',sans-serif"}
+      }
+    />
+  );
+}
+
+// ── Wizard: nová transakce (5 kroků) ───────────────────────────────────────
+// Krok 1: datum + typ  |  2: kategorie  |  3: částka  |  4: popis  |  (edit=vše)
+function AddTxWizard({onClose, onSave, editTx, now}){
   const defaultDate=now.toISOString().slice(0,10);
-  const [step,setStep]=useState(editTx?3:1);
+  const [step,setStep]=useState(editTx?0:1);
   const [type,setType]=useState(editTx?editTx.type:"expense");
   const [date,setDate]=useState(editTx?editTx.date:defaultDate);
   const [category,setCategory]=useState(editTx?editTx.category:"food");
   const [amount,setAmount]=useState(editTx?String(editTx.amount):"");
   const [note,setNote]=useState(editTx?(editTx.note||""):"");
-
   const cats=type==="expense"?EXPENSE_CATEGORIES:INCOME_CATEGORIES;
   const selCat=getCat(category);
+  const STEPS=4;
 
   function handleSave(){
     const amt=parseAmount(amount);
@@ -132,44 +176,85 @@ function AddTxWizard({onClose,onSave,editTx,now}){
 
   const ms={
     lbl:{fontSize:12,color:"#93C5FD",fontWeight:500,marginBottom:4,display:"block"},
-    inp:{width:"100%",border:"1.5px solid rgba(147,197,253,0.3)",borderRadius:10,padding:"11px 14px",fontSize:15,outline:"none",background:"rgba(255,255,255,0.08)",color:"#fff",marginTop:4},
+    inp:{width:"100%",border:"1.5px solid rgba(147,197,253,0.3)",borderRadius:10,padding:"11px 14px",fontSize:15,outline:"none",background:"rgba(255,255,255,0.08)",color:"#fff",marginTop:4,fontFamily:"'DM Sans',sans-serif"},
     ttog:{display:"flex",background:"rgba(0,0,0,0.2)",borderRadius:10,padding:3,marginBottom:14},
     tbtn:(a,c)=>({flex:1,border:"none",borderRadius:8,padding:"9px",fontSize:14,fontWeight:700,cursor:"pointer",background:a?c:"transparent",color:a?"#fff":"rgba(255,255,255,0.4)",transition:"all 0.2s"}),
     cg:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:4},
     cb:(a,c)=>({border:`2px solid ${a?c:"rgba(255,255,255,0.12)"}`,borderRadius:10,padding:"8px 4px",background:a?c+"33":"rgba(255,255,255,0.05)",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}),
     nextBtn:(c)=>({width:"100%",background:c||"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontSize:16,fontWeight:700,cursor:"pointer",marginTop:14}),
-    backBtn:{flex:1,background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.7)",border:"1.5px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"13px",fontSize:15,fontWeight:600,cursor:"pointer",marginTop:14,marginRight:8},
+    rowBtns:{display:"flex",gap:8,marginTop:14},
+    backBtn:{background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.7)",border:"1.5px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"13px 0",fontSize:15,fontWeight:600,cursor:"pointer",flex:1},
     dot:(a)=>({width:a?22:7,height:7,borderRadius:4,background:a?"#60A5FA":"rgba(255,255,255,0.2)",transition:"all 0.2s"}),
-    stepHint:{fontSize:12,color:"rgba(255,255,255,0.45)",marginBottom:14},
+    hint:{fontSize:12,color:"rgba(255,255,255,0.4)",marginBottom:14},
+    closeBtn:{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:"50%",width:32,height:32,fontSize:18,cursor:"pointer",color:"rgba(255,255,255,0.7)",display:"flex",alignItems:"center",justifyContent:"center"},
   };
+
+  const accentBtn=type==="income"?"#16A34A":"#2563EB";
+
+  // Edit mode — vše na jedné stránce
+  if(editTx) return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+      onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"#1a3a5c",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:430,maxHeight:"92vh",overflowY:"auto",border:"1px solid rgba(147,197,253,0.15)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#fff"}}>Upravit záznam</h2>
+          <button onClick={onClose} style={ms.closeBtn}>×</button>
+        </div>
+        <div style={ms.ttog}>
+          <button style={ms.tbtn(type==="expense","#EF4444")} onClick={()=>{setType("expense");setCategory("food");}}>📤 Výdaj</button>
+          <button style={ms.tbtn(type==="income","#22C55E")} onClick={()=>{setType("income");setCategory("salary");}}>📥 Příjem</button>
+        </div>
+        <label style={ms.lbl}>Datum</label>
+        <input style={ms.inp} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
+        <div style={{height:12}}/>
+        <label style={ms.lbl}>Kategorie</label>
+        <div style={ms.cg}>
+          {(type==="expense"?EXPENSE_CATEGORIES:INCOME_CATEGORIES).map(cat=>(
+            <button key={cat.id} style={ms.cb(category===cat.id,cat.color)} onClick={()=>setCategory(cat.id)}>
+              <span style={{fontSize:20}}>{cat.icon}</span>
+              <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:500,textAlign:"center",lineHeight:1.2}}>{cat.label}</span>
+            </button>
+          ))}
+        </div>
+        <div style={{height:12}}/>
+        <label style={ms.lbl}>Částka (Kč)</label>
+        <input style={ms.inp} type="text" inputMode="decimal" placeholder="0,00" value={amount} onChange={e=>setAmount(e.target.value)}/>
+        <div style={{height:12}}/>
+        <label style={ms.lbl}>Popis platby</label>
+        <input style={ms.inp} type="text" inputMode="text" autoComplete="off" placeholder="Popis..." value={note} onChange={e=>setNote(e.target.value)}/>
+        <button style={ms.nextBtn(accentBtn)} onClick={handleSave}>Uložit změny</button>
+      </div>
+    </div>
+  );
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
       onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div style={{background:"#1a3a5c",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:430,maxHeight:"92vh",overflowY:"auto",border:"1px solid rgba(147,197,253,0.15)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#fff"}}>{editTx?"Upravit záznam":"Nový záznam"}</h2>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:"50%",width:32,height:32,fontSize:18,cursor:"pointer",color:"rgba(255,255,255,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#fff"}}>Nový záznam</h2>
+          <button onClick={onClose} style={ms.closeBtn}>×</button>
         </div>
-        {!editTx&&(
-          <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:18}}>
-            <div style={ms.dot(step>=1)}/><div style={ms.dot(step>=2)}/><div style={ms.dot(step>=3)}/>
-          </div>
-        )}
+        {/* Tečky průběhu */}
+        <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:18}}>
+          {[1,2,3,4].map(i=><div key={i} style={ms.dot(step>=i)}/>)}
+        </div>
 
+        {/* KROK 1 – datum + typ */}
         {step===1&&(<>
-          <div style={ms.stepHint}>Krok 1 — Typ a datum</div>
+          <div style={ms.hint}>Krok 1 ze 4 — Typ a datum</div>
           <div style={ms.ttog}>
             <button style={ms.tbtn(type==="expense","#EF4444")} onClick={()=>{setType("expense");setCategory("food");}}>📤 Výdaj</button>
             <button style={ms.tbtn(type==="income","#22C55E")} onClick={()=>{setType("income");setCategory("salary");}}>📥 Příjem</button>
           </div>
           <label style={ms.lbl}>Datum platby</label>
           <input style={ms.inp} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
-          <button style={ms.nextBtn(type==="income"?"#16A34A":"#2563EB")} onClick={()=>setStep(2)}>Pokračovat →</button>
+          <button style={ms.nextBtn(accentBtn)} onClick={()=>setStep(2)}>Pokračovat →</button>
         </>)}
 
+        {/* KROK 2 – kategorie */}
         {step===2&&(<>
-          <div style={ms.stepHint}>Krok 2 — {type==="expense"?"📤 Výdaj":"📥 Příjem"} · {fmtDate(date)}</div>
+          <div style={ms.hint}>Krok 2 ze 4 — {type==="expense"?"📤 Výdaj":"📥 Příjem"} · {fmtDate(date)}</div>
           <label style={ms.lbl}>Kategorie</label>
           <div style={ms.cg}>
             {cats.map(cat=>(
@@ -179,34 +264,15 @@ function AddTxWizard({onClose,onSave,editTx,now}){
               </button>
             ))}
           </div>
-          <div style={{display:"flex"}}>
+          <div style={ms.rowBtns}>
             <button style={ms.backBtn} onClick={()=>setStep(1)}>← Zpět</button>
-            <button style={{...ms.nextBtn(type==="income"?"#16A34A":"#2563EB"),flex:2,marginLeft:0}} onClick={()=>setStep(3)}>Pokračovat →</button>
+            <button style={{...ms.nextBtn(accentBtn),marginTop:0,flex:2}} onClick={()=>setStep(3)}>Pokračovat →</button>
           </div>
         </>)}
 
+        {/* KROK 3 – částka */}
         {step===3&&(<>
-          {editTx?(<>
-            <div style={ms.ttog}>
-              <button style={ms.tbtn(type==="expense","#EF4444")} onClick={()=>{setType("expense");setCategory("food");}}>📤 Výdaj</button>
-              <button style={ms.tbtn(type==="income","#22C55E")} onClick={()=>{setType("income");setCategory("salary");}}>📥 Příjem</button>
-            </div>
-            <label style={ms.lbl}>Datum</label>
-            <input style={ms.inp} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
-            <div style={{height:10}}/>
-            <label style={ms.lbl}>Kategorie</label>
-            <div style={ms.cg}>
-              {(type==="expense"?EXPENSE_CATEGORIES:INCOME_CATEGORIES).map(cat=>(
-                <button key={cat.id} style={ms.cb(category===cat.id,cat.color)} onClick={()=>setCategory(cat.id)}>
-                  <span style={{fontSize:20}}>{cat.icon}</span>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:500,textAlign:"center",lineHeight:1.2}}>{cat.label}</span>
-                </button>
-              ))}
-            </div>
-            <div style={{height:10}}/>
-          </>):(
-            <div style={ms.stepHint}>Krok 3 — {type==="expense"?"📤":"📥"} {selCat.icon} {selCat.label} · {fmtDate(date)}</div>
-          )}
+          <div style={ms.hint}>Krok 3 ze 4 — {selCat.icon} {selCat.label} · {fmtDate(date)}</div>
           <label style={ms.lbl}>Částka (Kč)</label>
           <input
             style={ms.inp}
@@ -215,24 +281,32 @@ function AddTxWizard({onClose,onSave,editTx,now}){
             placeholder="0,00"
             value={amount}
             onChange={e=>setAmount(e.target.value)}
-            autoFocus={!editTx}
+            autoFocus
           />
-          <div style={{height:12}}/>
-          <label style={ms.lbl}>Poznámka (volitelné)</label>
+          <div style={ms.rowBtns}>
+            <button style={ms.backBtn} onClick={()=>setStep(2)}>← Zpět</button>
+            <button style={{...ms.nextBtn(accentBtn),marginTop:0,flex:2}} onClick={()=>{if(parseAmount(amount)>0) setStep(4);}}>Pokračovat →</button>
+          </div>
+        </>)}
+
+        {/* KROK 4 – popis */}
+        {step===4&&(<>
+          <div style={ms.hint}>Krok 4 ze 4 — {selCat.icon} {selCat.label} · {formatCZK(parseAmount(amount))}</div>
+          <label style={ms.lbl}>Popis platby (volitelné)</label>
           <input
             style={ms.inp}
             type="text"
             inputMode="text"
             autoComplete="off"
+            autoCorrect="off"
             placeholder="Popis záznamu..."
             value={note}
             onChange={e=>setNote(e.target.value)}
+            autoFocus
           />
-          <div style={{display:"flex"}}>
-            {!editTx&&<button style={ms.backBtn} onClick={()=>setStep(2)}>← Zpět</button>}
-            <button style={{...ms.nextBtn(type==="income"?"#16A34A":"#2563EB"),flex:2,marginLeft:0}} onClick={handleSave}>
-              {editTx?"Uložit změny":"Přidat záznam"}
-            </button>
+          <div style={ms.rowBtns}>
+            <button style={ms.backBtn} onClick={()=>setStep(3)}>← Zpět</button>
+            <button style={{...ms.nextBtn(accentBtn),marginTop:0,flex:2}} onClick={handleSave}>Přidat záznam ✓</button>
           </div>
         </>)}
       </div>
@@ -240,84 +314,89 @@ function AddTxWizard({onClose,onSave,editTx,now}){
   );
 }
 
-// Step wizard pro investici
-function AddInvWizard({onClose,onSave,now}){
+// ── Wizard: nová investice (5 kroků) ───────────────────────────────────────
+// 1: datum  |  2: typ  |  3: měna  |  4: kusy + částka  |  5: název
+function AddInvWizard({onClose, onSave, now}){
   const defaultDate=now.toISOString().slice(0,10);
   const [step,setStep]=useState(1);
   const [date,setDate]=useState(defaultDate);
-  const [type,setType]=useState("Akcie");
+  const [invType,setInvType]=useState("Akcie");
   const [currency,setCurrency]=useState("CZK");
-  const [name,setName]=useState("");
-  const [amount,setAmount]=useState("");
   const [qty,setQty]=useState("");
+  const [amount,setAmount]=useState("");
+  const [name,setName]=useState("");
 
   function handleSave(){
     const amt=parseAmount(amount);
     if(!name||!amt||amt<=0) return;
-    onSave({name,amount:amt,qty:qty?parseAmount(qty):1,type,currency,date});
+    onSave({name,amount:amt,qty:qty?parseAmount(qty):1,type:invType,currency,date});
   }
 
   const ms={
     lbl:{fontSize:12,color:"#93C5FD",fontWeight:500,marginBottom:4,display:"block"},
-    inp:{width:"100%",border:"1.5px solid rgba(147,197,253,0.3)",borderRadius:10,padding:"11px 14px",fontSize:15,outline:"none",background:"rgba(255,255,255,0.08)",color:"#fff",marginTop:4},
+    inp:{width:"100%",border:"1.5px solid rgba(147,197,253,0.3)",borderRadius:10,padding:"11px 14px",fontSize:15,outline:"none",background:"rgba(255,255,255,0.08)",color:"#fff",marginTop:4,fontFamily:"'DM Sans',sans-serif"},
     nextBtn:(c)=>({width:"100%",background:c||"#6366F1",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontSize:16,fontWeight:700,cursor:"pointer",marginTop:14}),
-    backBtn:{flex:1,background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.7)",border:"1.5px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"13px",fontSize:15,fontWeight:600,cursor:"pointer",marginTop:14,marginRight:8},
+    rowBtns:{display:"flex",gap:8,marginTop:14},
+    backBtn:{background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.7)",border:"1.5px solid rgba(255,255,255,0.15)",borderRadius:12,padding:"13px 0",fontSize:15,fontWeight:600,cursor:"pointer",flex:1},
     dot:(a)=>({width:a?22:7,height:7,borderRadius:4,background:a?"#A78BFA":"rgba(255,255,255,0.2)",transition:"all 0.2s"}),
-    stepHint:{fontSize:12,color:"rgba(255,255,255,0.45)",marginBottom:14},
-    chip:(a,c)=>({border:`1.5px solid ${a?c:"rgba(255,255,255,0.15)"}`,borderRadius:10,padding:"10px 6px",fontSize:13,fontWeight:a?700:500,cursor:"pointer",background:a?c+"33":"rgba(255,255,255,0.05)",color:a?"#fff":"rgba(255,255,255,0.5)",flex:1,textAlign:"center"}),
+    hint:{fontSize:12,color:"rgba(255,255,255,0.4)",marginBottom:14},
+    closeBtn:{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:"50%",width:32,height:32,fontSize:18,cursor:"pointer",color:"rgba(255,255,255,0.7)",display:"flex",alignItems:"center",justifyContent:"center"},
+    chip:(a,c)=>({border:`1.5px solid ${a?c:"rgba(255,255,255,0.15)"}`,borderRadius:10,padding:"12px 6px",fontSize:14,fontWeight:a?700:500,cursor:"pointer",background:a?c+"33":"rgba(255,255,255,0.05)",color:a?"#fff":"rgba(255,255,255,0.5)",flex:1,textAlign:"center",transition:"all 0.15s"}),
   };
 
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
       onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div style={{background:"#1a3a5c",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:430,maxHeight:"92vh",overflowY:"auto",border:"1px solid rgba(147,197,253,0.15)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <h2 style={{margin:0,fontSize:18,fontWeight:800,color:"#fff"}}>Nová investice</h2>
-          <button onClick={onClose} style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:"50%",width:32,height:32,fontSize:18,cursor:"pointer",color:"rgba(255,255,255,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+          <button onClick={onClose} style={ms.closeBtn}>×</button>
         </div>
         <div style={{display:"flex",gap:6,justifyContent:"center",marginBottom:18}}>
-          <div style={ms.dot(step>=1)}/><div style={ms.dot(step>=2)}/><div style={ms.dot(step>=3)}/><div style={ms.dot(step>=4)}/>
+          {[1,2,3,4,5].map(i=><div key={i} style={ms.dot(step>=i)}/>)}
         </div>
 
+        {/* KROK 1 – datum */}
         {step===1&&(<>
-          <div style={ms.stepHint}>Krok 1 — Datum nákupu</div>
+          <div style={ms.hint}>Krok 1 z 5 — Datum nákupu</div>
           <label style={ms.lbl}>Datum</label>
           <input style={ms.inp} type="date" value={date} onChange={e=>setDate(e.target.value)}/>
-          <label style={{...ms.lbl,marginTop:14}}>Název investice</label>
-          <input style={ms.inp} type="text" inputMode="text" autoComplete="off" placeholder="Název..." value={name} onChange={e=>setName(e.target.value)} autoFocus/>
-          <button style={ms.nextBtn()} onClick={()=>name&&setStep(2)}>Pokračovat →</button>
+          <button style={ms.nextBtn()} onClick={()=>setStep(2)}>Pokračovat →</button>
         </>)}
 
+        {/* KROK 2 – typ */}
         {step===2&&(<>
-          <div style={ms.stepHint}>Krok 2 — Typ investice · {name}</div>
+          <div style={ms.hint}>Krok 2 z 5 — Typ investice · {date}</div>
           <label style={ms.lbl}>Typ</label>
-          <div style={{display:"flex",gap:8,marginTop:4}}>
+          <div style={{display:"flex",gap:8,marginTop:6}}>
             {INV_TYPES.map(t=>(
-              <button key={t} style={ms.chip(type===t,"#A78BFA")} onClick={()=>setType(t)}>{t}</button>
+              <button key={t} style={ms.chip(invType===t,"#A78BFA")} onClick={()=>setInvType(t)}>{t}</button>
             ))}
           </div>
-          <div style={{display:"flex"}}>
+          <div style={ms.rowBtns}>
             <button style={ms.backBtn} onClick={()=>setStep(1)}>← Zpět</button>
-            <button style={{...ms.nextBtn(),flex:2,marginLeft:0}} onClick={()=>setStep(3)}>Pokračovat →</button>
+            <button style={{...ms.nextBtn(),marginTop:0,flex:2}} onClick={()=>setStep(3)}>Pokračovat →</button>
           </div>
         </>)}
 
+        {/* KROK 3 – měna */}
         {step===3&&(<>
-          <div style={ms.stepHint}>Krok 3 — Měna · {type} · {name}</div>
+          <div style={ms.hint}>Krok 3 z 5 — Měna · {invType}</div>
           <label style={ms.lbl}>Měna</label>
-          <div style={{display:"flex",gap:8,marginTop:4}}>
+          <div style={{display:"flex",gap:8,marginTop:6}}>
             {INV_CURRENCIES.map(cur=>(
               <button key={cur} style={ms.chip(currency===cur,"#60A5FA")} onClick={()=>setCurrency(cur)}>{cur}</button>
             ))}
           </div>
-          <div style={{display:"flex"}}>
+          <div style={ms.rowBtns}>
             <button style={ms.backBtn} onClick={()=>setStep(2)}>← Zpět</button>
-            <button style={{...ms.nextBtn(),flex:2,marginLeft:0}} onClick={()=>setStep(4)}>Pokračovat →</button>
+            <button style={{...ms.nextBtn(),marginTop:0,flex:2}} onClick={()=>setStep(4)}>Pokračovat →</button>
           </div>
         </>)}
 
+        {/* KROK 4 – kusy + částka */}
         {step===4&&(<>
-          <div style={ms.stepHint}>Krok 4 — {name} · {type} · {currency}</div>
+          <div style={ms.hint}>Krok 4 z 5 — {invType} · {currency}</div>
           <div style={{display:"flex",gap:10}}>
             <div style={{flex:1}}>
               <label style={ms.lbl}>Počet kusů</label>
@@ -329,13 +408,34 @@ function AddInvWizard({onClose,onSave,now}){
             </div>
           </div>
           {amount&&(
-            <div style={{marginTop:10,textAlign:"center",fontSize:13,color:"#A78BFA",fontWeight:700}}>
+            <div style={{marginTop:8,textAlign:"center",fontSize:13,color:"#A78BFA",fontWeight:700}}>
               Celkem: {formatMoney(parseAmount(amount)*(parseAmount(qty)||1),currency,true)}
             </div>
           )}
-          <div style={{display:"flex"}}>
+          <div style={ms.rowBtns}>
             <button style={ms.backBtn} onClick={()=>setStep(3)}>← Zpět</button>
-            <button style={{...ms.nextBtn(),flex:2,marginLeft:0}} onClick={handleSave}>Přidat investici</button>
+            <button style={{...ms.nextBtn(),marginTop:0,flex:2}} onClick={()=>{if(parseAmount(amount)>0) setStep(5);}}>Pokračovat →</button>
+          </div>
+        </>)}
+
+        {/* KROK 5 – název */}
+        {step===5&&(<>
+          <div style={ms.hint}>Krok 5 z 5 — {invType} · {currency} · {formatMoney(parseAmount(amount)*(parseAmount(qty)||1),currency,true)}</div>
+          <label style={ms.lbl}>Název investice</label>
+          <input
+            style={ms.inp}
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            autoCorrect="off"
+            placeholder="Název..."
+            value={name}
+            onChange={e=>setName(e.target.value)}
+            autoFocus
+          />
+          <div style={ms.rowBtns}>
+            <button style={ms.backBtn} onClick={()=>setStep(4)}>← Zpět</button>
+            <button style={{...ms.nextBtn(),marginTop:0,flex:2}} onClick={handleSave}>Přidat investici ✓</button>
           </div>
         </>)}
       </div>
@@ -343,28 +443,7 @@ function AddInvWizard({onClose,onSave,now}){
   );
 }
 
-// Stabilní input pro Fixed výdaje — nikdy se nepřekresluje
-function FixedInput({value, onChange, placeholder, isAmount}){
-  const ref=useRef(null);
-  const handleChange=useCallback(e=>{
-    onChange(e.target.value);
-  },[onChange]);
-  return(
-    <input
-      ref={ref}
-      defaultValue={value}
-      onChange={handleChange}
-      placeholder={placeholder}
-      inputMode={isAmount?"decimal":"text"}
-      autoComplete="off"
-      style={isAmount
-        ?{width:80,flexShrink:0,border:"1.5px solid rgba(147,197,253,0.25)",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"rgba(255,255,255,0.07)",textAlign:"right",color:"#fff"}
-        :{flex:"1 1 0",minWidth:0,border:"1.5px solid rgba(147,197,253,0.25)",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"rgba(255,255,255,0.07)",color:"#fff"}
-      }
-    />
-  );
-}
-
+// ── Hlavní App ──────────────────────────────────────────────────────────────
 function App(){
   const now=new Date();
   const [transactions,setTransactions]=useState([]);
@@ -381,6 +460,7 @@ function App(){
   const [showNWEdit,setShowNWEdit]=useState(false);
   const [editTx,setEditTx]=useState(null);
   const [nwInput,setNwInput]=useState("");
+  const [selectedPie,setSelectedPie]=useState(null);
   const topRef=useRef(null);
 
   useEffect(()=>{
@@ -411,56 +491,48 @@ function App(){
   const netWorth=netWorthStart+allIncome-allExpense;
   const invByCurrency=INV_CURRENCIES.reduce((acc,cur)=>{acc[cur]=investments.filter(i=>i.currency===cur).reduce((s,i)=>s+i.amount*(i.qty||1),0);return acc;},{});
   const expByCat=EXPENSE_CATEGORIES.reduce((acc,c)=>{acc[c.id]=filtered.filter(t=>t.type==="expense"&&t.category===c.id).reduce((s,t)=>s+t.amount,0);return acc;},{});
-  const pieData=EXPENSE_CATEGORIES.filter(c=>expByCat[c.id]>0).sort((a,b)=>expByCat[b.id]-expByCat[a.id]).map(c=>({label:c.label,icon:c.icon,color:c.color,value:expByCat[c.id]}));
+  const pieData=EXPENSE_CATEGORIES.filter(c=>expByCat[c.id]>0).sort((a,b)=>expByCat[b.id]-expByCat[a.id]).map(c=>({id:c.id,label:c.label,icon:c.icon,color:c.color,value:expByCat[c.id]}));
   const cfNoteKey=`${filterYear}-${filterMonth}`;
   const cfNote=cashflowNotes[cfNoteKey]||"";
   const sumNec=fixedExpenses.necessary.reduce((s,r)=>s+parseAmount(r.amount),0);
   const sumInv=fixedExpenses.investment.reduce((s,r)=>s+parseAmount(r.amount),0);
   const sumUnnec=fixedExpenses.unnecessary.reduce((s,r)=>s+parseAmount(r.amount),0);
 
-  function handleSaveTx({type,date,category,amount,note}){
+  function handleSaveTx(data){
     if(editTx){
-      setTransactions(p=>p.map(t=>t.id===editTx?{...t,type,amount,category,note,date}:t));
+      setTransactions(p=>p.map(t=>t.id===editTx?{...t,...data}:t));
       setEditTx(null);
     } else {
-      setTransactions(p=>[{id:Date.now().toString(),type,amount,category,note,date},...p]);
+      setTransactions(p=>[{id:Date.now().toString(),...data},...p]);
     }
     setShowAdd(false);
     setTimeout(scrollToTop,100);
   }
 
-  function handleSaveInv({name,amount,qty,type,currency,date}){
-    setInvestments(p=>[{id:Date.now().toString(),name,amount,qty,type,currency,date},...p]);
+  function handleSaveInv(data){
+    setInvestments(p=>[{id:Date.now().toString(),...data},...p]);
     setShowInvAdd(false);
     setTimeout(scrollToTop,100);
   }
 
   function openEdit(tx){setEditTx(tx.id);setShowAdd(true);}
-
   function prevMonth(){if(filterMonth===0){setFilterMonth(11);setFilterYear(y=>y-1);}else setFilterMonth(m=>m-1);}
   function nextMonth(){if(filterMonth===11){setFilterMonth(0);setFilterYear(y=>y+1);}else setFilterMonth(m=>m+1);}
   function addFixedRow(type){setFixedExpenses(p=>({...p,[type]:[...p[type],{id:Date.now().toString(),label:"",amount:""}]}));}
-  function updateFixedRow(type,id,field,val){setFixedExpenses(p=>({...p,[type]:p[type].map(r=>r.id===id?{...r,[field]:val}:r)}));}
+  // onBlur commit — klávesnice zůstane živá při psaní
+  function commitFixedRow(type,id,field,val){setFixedExpenses(p=>({...p,[type]:p[type].map(r=>r.id===id?{...r,[field]:val}:r)}));}
   function removeFixedRow(type,id){setFixedExpenses(p=>({...p,[type]:p[type].filter(r=>r.id!==id)}));}
 
-  const visibleTx=[...filtered].filter(t=>txFilter==="all"?true:t.type===txFilter).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const visibleTx=[...filtered].filter(t=>txFilter==="all"||t.type===txFilter).sort((a,b)=>new Date(b.date)-new Date(a.date));
   const txByDay=visibleTx.reduce((acc,tx)=>{if(!acc[tx.date])acc[tx.date]=[];acc[tx.date].push(tx);return acc;},{});
   const sortedDays=Object.keys(txByDay).sort((a,b)=>new Date(b)-new Date(a));
 
-  // Styles — dark ocean blue theme
-  const BG="#1E3A5F";
-  const BG2="#1a3355";
-  const CARD="rgba(255,255,255,0.07)";
-  const BORDER="rgba(147,197,253,0.15)";
-  const ACCENT="#3B82F6";
-  const TEXT="#fff";
-  const TEXTSEC="rgba(255,255,255,0.55)";
-  const TEXTHINT="rgba(255,255,255,0.3)";
+  const BG="#1E3A5F", CARD="rgba(255,255,255,0.07)", BORDER="rgba(147,197,253,0.15)";
+  const ACCENT="#3B82F6", TEXT="#fff", TEXTSEC="rgba(255,255,255,0.55)", TEXTHINT="rgba(255,255,255,0.3)";
 
   const s={
     app:{fontFamily:"'DM Sans',sans-serif",background:BG,minHeight:"100vh",maxWidth:430,margin:"0 auto",paddingBottom:88},
     hdr:{background:"#152d4d",padding:"16px 20px 12px",borderBottom:`1px solid ${BORDER}`,position:"sticky",top:0,zIndex:10},
-    row:{display:"flex",justifyContent:"space-between",alignItems:"center"},
     title:{fontSize:21,fontWeight:800,color:TEXT,margin:0,letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:8},
     walletBadge:{width:32,height:32,borderRadius:9,background:ACCENT,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},
     msel:{display:"flex",alignItems:"center",gap:8,marginTop:10},
@@ -476,7 +548,7 @@ function App(){
     tic:(c)=>({width:34,height:34,borderRadius:10,background:c+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}),
     fr:{display:"flex",gap:8,margin:"10px 14px 0"},
     fb:(a)=>({flex:1,border:`1.5px solid ${a?ACCENT:BORDER}`,borderRadius:10,padding:"8px",fontSize:13,fontWeight:a?700:500,cursor:"pointer",background:a?"rgba(59,130,246,0.25)":"rgba(255,255,255,0.04)",color:a?"#93C5FD":TEXTSEC,transition:"all 0.2s",textAlign:"center"}),
-    inp:{width:"100%",border:`1.5px solid ${BORDER}`,borderRadius:10,padding:"10px 14px",fontSize:15,outline:"none",background:"rgba(255,255,255,0.08)",color:TEXT,marginTop:6},
+    inp:{width:"100%",border:`1.5px solid ${BORDER}`,borderRadius:10,padding:"10px 14px",fontSize:15,outline:"none",background:"rgba(255,255,255,0.08)",color:TEXT,marginTop:6,fontFamily:"'DM Sans',sans-serif"},
     pbtn:(bg)=>({width:"100%",background:bg||ACCENT,color:"#fff",border:"none",borderRadius:12,padding:"13px",fontSize:16,fontWeight:700,cursor:"pointer",marginTop:10}),
   };
 
@@ -486,15 +558,15 @@ function App(){
       <div style={s.card}>
         {rows.map(row=>(
           <div key={row.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
-            <FixedInput
-              value={row.label}
-              onChange={val=>updateFixedRow(type,row.id,"label",val)}
+            <StableInput
+              initialValue={row.label}
+              onCommit={val=>commitFixedRow(type,row.id,"label",val)}
               placeholder="Název..."
               isAmount={false}
             />
-            <FixedInput
-              value={row.amount}
-              onChange={val=>updateFixedRow(type,row.id,"amount",val)}
+            <StableInput
+              initialValue={row.amount}
+              onCommit={val=>commitFixedRow(type,row.id,"amount",val)}
               placeholder="0"
               isAmount={true}
             />
@@ -512,9 +584,8 @@ function App(){
 
   return(
     <div style={s.app} ref={topRef}>
-      {/* HEADER */}
       <div style={s.hdr}>
-        <div style={s.row}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <h1 style={s.title}>
             <div style={s.walletBadge}><WalletIcon size={18} color="#fff"/></div>
             Finance
@@ -592,29 +663,48 @@ function App(){
             </div>
           </div>
         </div>
+
         <div style={{...s.card,padding:"12px 14px"}}>
           <div style={{fontSize:12,color:"#93C5FD",fontWeight:500,marginBottom:6}}>📝 Poznámka — {MONTHS_CZ[filterMonth]}</div>
           <textarea placeholder="Proč byl tento měsíc výkyv?" value={cfNote} onChange={e=>setCashflowNotes(p=>({...p,[cfNoteKey]:e.target.value}))}
             inputMode="text"
             style={{width:"100%",border:`1.5px solid ${BORDER}`,borderRadius:10,padding:"10px 12px",fontSize:13,outline:"none",background:"rgba(255,255,255,0.06)",resize:"none",minHeight:72,fontFamily:"'DM Sans',sans-serif",color:TEXT,lineHeight:1.5}}/>
         </div>
+
         <div style={s.sec}>Výdaje dle kategorií</div>
         <div style={s.card}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{flexShrink:0}}><PieChart data={pieData} size={148}/></div>
-            <div style={{flex:1,overflowY:"auto",maxHeight:148}}>
-              {pieData.length===0?<div style={{color:TEXTHINT,fontSize:13}}>Žádné výdaje</div>
-                :pieData.map((d,i)=>{
-                  const tot=pieData.reduce((s,x)=>s+x.value,0);
-                  return(<div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:7}}>
-                    <div style={{width:9,height:9,borderRadius:"50%",background:d.color,flexShrink:0}}/>
-                    <span style={{fontSize:12,color:TEXT,flex:1}}>{d.icon} {d.label}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:d.color}}>{Math.round((d.value/tot)*100)}%</span>
-                  </div>);
-                })}
-            </div>
-          </div>
+          {pieData.length===0
+            ? <div style={{textAlign:"center",color:TEXTHINT,fontSize:13,padding:16}}>Žádné výdaje tento měsíc</div>
+            : (<div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                <div style={{flexShrink:0}}>
+                  <PieChart data={pieData} size={148} selected={selectedPie} onSelect={setSelectedPie}/>
+                </div>
+                <div style={{flex:1,overflowY:"auto",maxHeight:160}}>
+                  {pieData.map((d,i)=>{
+                    const tot=pieData.reduce((s,x)=>s+x.value,0);
+                    const isSel=selectedPie===d.id;
+                    const isOther=selectedPie&&!isSel;
+                    return(
+                      <div key={i}
+                        onClick={()=>setSelectedPie(isSel?null:d.id)}
+                        style={{display:"flex",alignItems:"center",gap:6,marginBottom:7,cursor:"pointer",
+                          opacity:isOther?0.38:1,
+                          background:isSel?"rgba(255,255,255,0.08)":"transparent",
+                          borderRadius:8,padding:"3px 5px",
+                          border:isSel?`1px solid ${d.color}40`:"1px solid transparent",
+                          transition:"all 0.18s"}}>
+                        <div style={{width:9,height:9,borderRadius:"50%",background:d.color,flexShrink:0,
+                          boxShadow:isSel?`0 0 6px ${d.color}`:"none",transition:"all 0.18s"}}/>
+                        <span style={{fontSize:12,color:isSel?"#fff":TEXT,flex:1,fontWeight:isSel?700:400}}>{d.icon} {d.label}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:d.color}}>{Math.round((d.value/tot)*100)}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>)
+          }
         </div>
+
         <div style={s.sec}>Tento měsíc</div>
         <div style={{...s.card,display:"flex",gap:0,padding:0,overflow:"hidden"}}>
           {[{label:"Příjmy",val:totalIncome,color:"#4ADE80"},{label:"Výdaje",val:totalExpense,color:"#F87171"},{label:"Cash flow",val:cashflow,color:cashflow>=0?"#34D399":"#F87171"}].map((item,i)=>(
@@ -652,7 +742,7 @@ function App(){
           <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginBottom:10}}>📈 Celkem zainvestováno</div>
           <div style={{display:"flex",gap:0}}>
             {INV_CURRENCIES.map((cur,i)=>(
-              <div key={cur} style={{flex:1,textAlign:"center",borderRight:i<2?`1px solid rgba(255,255,255,0.1)`:"none",padding:"0 4px"}}>
+              <div key={cur} style={{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,0.1)":"none",padding:"0 4px"}}>
                 <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginBottom:3}}>{cur}</div>
                 <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>{formatMoney(invByCurrency[cur],cur)}</div>
               </div>
@@ -703,11 +793,7 @@ function App(){
       )}
 
       {showInvAdd&&(
-        <AddInvWizard
-          now={now}
-          onClose={()=>setShowInvAdd(false)}
-          onSave={handleSaveInv}
-        />
+        <AddInvWizard now={now} onClose={()=>setShowInvAdd(false)} onSave={handleSaveInv}/>
       )}
 
       {showNWEdit&&(
