@@ -362,9 +362,9 @@ function NWModal({onClose,onSave}){
 
 // ── Fixed Section ─────────────────────────────────────────────────────────────
 function FixedSection({type,title,color,rows,onAdd,onCommit,onRemove,sum}){
-  return [
-    div({key:"sec",className:"sec"},title),
-    div({key:"card",className:"card"},
+  return e(React.Fragment,null,
+    div({className:"sec"},title),
+    div({className:"card"},
       ...rows.map(row=>div({key:row.id,style:{display:"flex",alignItems:"center",gap:6,marginBottom:8}},
         e(StableInput,{initialValue:row.label,onCommit:v=>onCommit(type,row.id,"label",v),placeholder:"Název...",isAmount:false}),
         e(StableInput,{initialValue:row.amount,onCommit:v=>onCommit(type,row.id,"amount",v),placeholder:"0",isAmount:true}),
@@ -376,7 +376,7 @@ function FixedSection({type,title,color,rows,onAdd,onCommit,onRemove,sum}){
         span({style:{fontSize:"16px",fontWeight:800,color}},fmtCZK(sum))
       )
     )
-  ];
+  );
 }
 
 // ── App ───────────────────────────────────────────────────────────────────────
@@ -549,9 +549,9 @@ function App(){
 
   function renderFixed(){
     return [
-      ...e(FixedSection,{key:"nec",type:"necessary",title:"Nutné výdaje",color:"#A78BFA",rows:fixed.necessary,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumNec}),
-      ...e(FixedSection,{key:"inv",type:"investment",title:"Investiční výdaje",color:"#38BDF8",rows:fixed.investment,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumInv}),
-      ...e(FixedSection,{key:"unn",type:"unnecessary",title:"Zbytné výdaje",color:"#F472B6",rows:fixed.unnecessary,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumUnnec}),
+      e(FixedSection,{key:"nec",type:"necessary",title:"Nutné výdaje",color:"#A78BFA",rows:fixed.necessary,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumNec}),
+      e(FixedSection,{key:"inv",type:"investment",title:"Investiční výdaje",color:"#38BDF8",rows:fixed.investment,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumInv}),
+      e(FixedSection,{key:"unn",type:"unnecessary",title:"Zbytné výdaje",color:"#F472B6",rows:fixed.unnecessary,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumUnnec}),
       div({key:"total",className:"card",style:{background:"linear-gradient(135deg,#0f2942,#1D4ED8)",border:"none",marginBottom:12}},
         div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
           div(null,
