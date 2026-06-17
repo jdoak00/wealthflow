@@ -1,95 +1,641 @@
-div>
-            <div style={{textAlign:"right",fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.9}}>
-              <div>Nutné: <b>{formatCZK(sumNec)}</b></div>
-              <div>Investice: <b>{formatCZK(sumInv)}</b></div>
-              <div>Zbytné: <b>{formatCZK(sumUnnec)}</b></div>
-            </div>
-          </div>
-        </div>
-      </>)}
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#1D4ED8"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Finance"/>
+  <title>Finance</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:#1E3A5F;font-family:'DM Sans',sans-serif;}
+    #root{max-width:430px;margin:0 auto;}
+    input,textarea{-webkit-user-select:text;user-select:text;font-family:'DM Sans',sans-serif;}
+    input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1) opacity(0.5);}
+    .card{background:rgba(255,255,255,0.07);border-radius:16px;padding:16px;margin:10px 14px 0;border:1px solid rgba(147,197,253,0.15);}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
+    .modal-box{background:#1a3a5c;border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:430px;max-height:92vh;overflow-y:auto;border:1px solid rgba(147,197,253,0.15);}
+    .inp{width:100%;border:1.5px solid rgba(147,197,253,0.3);border-radius:10px;padding:11px 14px;font-size:15px;outline:none;background:rgba(255,255,255,0.08);color:#fff;margin-top:4px;font-family:'DM Sans',sans-serif;}
+    .btn-next{width:100%;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:700;cursor:pointer;margin-top:14px;color:#fff;}
+    .btn-back{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1.5px solid rgba(255,255,255,0.15);border-radius:12px;padding:13px 0;font-size:15px;font-weight:600;cursor:pointer;flex:1;}
+    .lbl{font-size:12px;color:#93C5FD;font-weight:500;margin-bottom:4px;display:block;}
+    .hint{font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:14px;}
+    .ttog{display:flex;background:rgba(0,0,0,0.2);border-radius:10px;padding:3px;margin-bottom:14px;}
+    .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;}
+    .cat-btn{border-radius:10px;padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
+    .cat-lbl{font-size:9px;color:rgba(255,255,255,0.75);font-weight:500;text-align:center;line-height:1.2;}
+    .chip{border-radius:10px;padding:12px 6px;font-size:14px;cursor:pointer;flex:1;text-align:center;transition:all 0.15s;}
+    .dot-row{display:flex;gap:6px;justify-content:center;margin-bottom:18px;}
+    .sec{font-size:11px;font-weight:700;color:#60A5FA;margin:16px 14px 0;text-transform:uppercase;letter-spacing:1.2px;}
+    .fr{display:flex;gap:8px;margin:10px 14px 0;}
+    .fb{border-radius:10px;padding:8px;font-size:13px;cursor:pointer;transition:all 0.2s;text-align:center;flex:1;}
+    .txi{display:flex;align-items:center;gap:10px;padding:9px 0;}
+    .tic{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+    .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#152d4d;border-top:1px solid rgba(147,197,253,0.15);display:flex;z-index:20;}
+    .nb{flex:1;border:none;background:none;padding:8px 0 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:9px;font-weight:500;font-family:'DM Sans',sans-serif;}
+    .fab{position:fixed;bottom:68px;right:calc(50% - 215px + 16px);width:52px;height:52px;border-radius:50%;background:#3B82F6;border:none;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(37,99,235,0.5);z-index:25;}
+    .pie-slice{cursor:pointer;transition:opacity 0.2s;}
+    .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:7px;cursor:pointer;border-radius:8px;padding:3px 5px;border:1px solid transparent;transition:all 0.18s;}
+    textarea{resize:none;}
+  </style>
+</head>
+<body>
+<div id="root" style="font-family:'DM Sans',sans-serif;background:#1E3A5F;min-height:100vh;max-width:430px;margin:0 auto;padding-bottom:88px;"></div>
 
-      {/* INVESTICE */}
-      {tab==="invest"&&(<>
-        <div style={{...s.card,background:"linear-gradient(135deg,#0c1a2e,#1e3a5f)",border:"none"}}>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginBottom:10}}>📈 Celkem zainvestováno</div>
-          <div style={{display:"flex",gap:0}}>
-            {INV_CURRENCIES.map((cur,i)=>(
-              <div key={cur} style={{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,0.1)":"none",padding:"0 4px"}}>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginBottom:3}}>{cur}</div>
-                <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>{formatMoney(invByCurrency[cur],cur)}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.3)",marginTop:8,textAlign:"center"}}>{investments.length} pozic</div>
-        </div>
-        <div style={s.sec}>Investiční portfolio</div>
-        <div style={s.card}>
-          {investments.length===0
-            ?<div style={{textAlign:"center",color:TEXTHINT,fontSize:14,padding:20}}>Žádné investice.<br/>Přidej pomocí +</div>
-            :[...investments].sort((a,b)=>(b.amount*b.qty)-(a.amount*a.qty)).map(inv=>(
-              <div key={inv.id} style={s.txi}>
-                <div style={{...s.tic("#6366F1"),fontSize:20}}>📈</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:14,fontWeight:700,color:TEXT}}>{inv.name}</div>
-                  <div style={{fontSize:11,color:TEXTSEC}}>{inv.type} · {inv.qty>1?`${inv.qty} ks · `:""}{new Date(inv.date).toLocaleDateString("cs-CZ")}</div>
-                </div>
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{fontSize:15,fontWeight:700,color:"#A78BFA"}}>{formatMoney(inv.amount*inv.qty,inv.currency||"CZK",true)}</div>
-                  <div style={{fontSize:10,color:TEXTHINT}}>{inv.currency||"CZK"}</div>
-                  <button onClick={()=>setInvestments(p=>p.filter(i=>i.id!==inv.id))} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:TEXTHINT}}>🗑</button>
-                </div>
-              </div>
-            ))
-          }
-        </div>
-      </>)}
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+<script>
+const e = React.createElement;
+const {useState,useEffect,useRef,useCallback} = React;
 
-      <button style={{...s.fab,display:tab==="dashboard"||tab==="fixed"?"none":"flex"}}
-        onClick={()=>tab==="invest"?setShowInvAdd(true):setShowAdd(true)}>+</button>
+const EXPENSE_CATS=[
+  {id:"housing",label:"Bydlení",icon:"🏠",color:"#8B5CF6"},
+  {id:"food",label:"Jídlo",icon:"🍽️",color:"#F97316"},
+  {id:"shopping",label:"Nákupy",icon:"🛍️",color:"#F59E0B"},
+  {id:"entertainment",label:"Zábava",icon:"🎬",color:"#EC4899"},
+  {id:"media",label:"Média",icon:"📺",color:"#6366F1"},
+  {id:"investments",label:"Investice",icon:"📈",color:"#0EA5E9"},
+  {id:"car",label:"Auto",icon:"🚗",color:"#64748B"},
+  {id:"transport",label:"Doprava",icon:"🚌",color:"#3B82F6"},
+  {id:"beauty",label:"Krása",icon:"💅",color:"#F472B6"},
+  {id:"health",label:"Zdraví",icon:"💊",color:"#10B981"},
+  {id:"snacks",label:"Občerstvení",icon:"☕",color:"#D97706"},
+];
+const INCOME_CATS=[
+  {id:"salary",label:"Mzda",icon:"💼",color:"#22C55E"},
+  {id:"invoice",label:"Faktura",icon:"🧾",color:"#0EA5E9"},
+  {id:"inv_income",label:"Investice",icon:"📈",color:"#6366F1"},
+  {id:"rent",label:"Nájem",icon:"🏡",color:"#F59E0B"},
+  {id:"other_inc",label:"Jiné",icon:"💰",color:"#94A3B8"},
+];
+const ALL_CATS=[...EXPENSE_CATS,...INCOME_CATS];
+const INV_TYPES=["Akcie","Bitcoin","ETF"];
+const INV_CURR=["CZK","EUR","USD"];
+const MONTHS=["Leden","Únor","Březen","Duben","Květen","Červen","Červenec","Srpen","Září","Říjen","Listopad","Prosinec"];
+const DAYS=["Ne","Po","Út","St","Čt","Pá","So"];
+const STORAGE="wealthflow_v1";
 
-      <nav style={s.nav}>
-        {[{id:"transactions",icon:"📋",label:"Záznamy"},{id:"dashboard",icon:"📊",label:"Přehled"},{id:"fixed",icon:"🔁",label:"Výdaje"},{id:"invest",icon:"📈",label:"Investice"}].map(n=>(
-          <button key={n.id} style={s.nb(tab===n.id)} onClick={()=>setTab(n.id)}>
-            <span style={{fontSize:20}}>{n.icon}</span>{n.label}
-          </button>
-        ))}
-      </nav>
+function fmtMoney(n,cur,dec=false){
+  const f=dec?2:0;
+  if(cur==="EUR") return new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"EUR",maximumFractionDigits:f}).format(n);
+  if(cur==="USD") return new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"USD",maximumFractionDigits:f}).format(n);
+  return new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"CZK",maximumFractionDigits:f}).format(n);
+}
+function fmtCZK(n){return fmtMoney(n,"CZK");}
+function parseAmt(v){return parseFloat(String(v).replace(",","."))||0;}
+function getCat(id){return ALL_CATS.find(c=>c.id===id)||{label:"Ostatní",icon:"📦",color:"#94A3B8"};}
+function fmtDate(s){
+  const d=new Date(s+"T00:00:00");
+  return `${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()} (${DAYS[d.getDay()]})`;
+}
+function loadData(){
+  try{const r=localStorage.getItem(STORAGE);if(r)return JSON.parse(r);}catch{}
+  return null;
+}
+function saveData(d){try{localStorage.setItem(STORAGE,JSON.stringify(d));}catch{}}
 
-      {showAdd&&(
-        <AddTxWizard
-          now={now}
-          editTx={editTx?transactions.find(t=>t.id===editTx):null}
-          onClose={()=>{setShowAdd(false);setEditTx(null);}}
-          onSave={handleSaveTx}
-        />
-      )}
+// ── helpers ────────────────────────────────────────────────────────────────
+function el(tag,props,...children){return e(tag,props,...children);}
+function div(props,...c){return e("div",props,...c);}
+function span(props,...c){return e("span",props,...c);}
+function btn(props,...c){return e("button",props,...c);}
+function inp(props){return e("input",props);}
 
-      {showInvAdd&&(
-        <AddInvWizard now={now} onClose={()=>setShowInvAdd(false)} onSave={handleSaveInv}/>
-      )}
-
-      {showNWEdit&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
-          onClick={e=>{if(e.target===e.currentTarget)setShowNWEdit(false);}}>
-          <div style={{background:"#1a3a5c",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:430,border:`1px solid ${BORDER}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <h2 style={{margin:0,fontSize:18,fontWeight:800,color:TEXT}}>Startovní hodnota</h2>
-              <button onClick={()=>setShowNWEdit(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:"50%",width:32,height:32,fontSize:18,cursor:"pointer",color:TEXTSEC,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-            </div>
-            <div style={{fontSize:13,color:TEXTSEC,marginBottom:14,lineHeight:1.6}}>Zadej svůj aktuální majetek jako výchozí bod.</div>
-            <div style={{fontSize:12,color:"#93C5FD",fontWeight:500}}>Počáteční hodnota (Kč)</div>
-            <input style={s.inp} type="text" inputMode="decimal" placeholder="0" value={nwInput} onChange={e=>setNwInput(e.target.value)}/>
-            <button style={s.pbtn()} onClick={()=>{setNetWorthStart(parseAmount(nwInput));setShowNWEdit(false);}}>Uložit</button>
-          </div>
-        </div>
-      )}
-    </div>
+function WalletSVG({size=18,color="#fff"}){
+  return e("svg",{width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},
+    e("path",{d:"M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-2"}),
+    e("path",{d:"M16 12h4v4h-4a2 2 0 0 1 0-4z"}),
+    e("path",{d:"M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"})
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-document.getElementById('loader').style.display='none';
-document.getElementById('loader').style.display='none';
+// ── Pie Chart ───────────────────────────────────────────────────────────────
+function PieChart({data,size=148,selected,onSelect}){
+  const total=data.reduce((s,d)=>s+d.value,0);
+  if(!total) return div({style:{textAlign:"center",color:"rgba(255,255,255,0.3)",padding:"20px",fontSize:"13px"}},"Žádné výdaje");
+  const cx=size/2,cy=size/2,r=size/2-8;
+  let angle=-Math.PI/2;
+  const slices=data.map(d=>{
+    const sweep=(d.value/total)*2*Math.PI;
+    const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
+    angle+=sweep;
+    const x2=cx+r*Math.cos(angle),y2=cy+r*Math.sin(angle);
+    const large=sweep>Math.PI?1:0;
+    const mid=angle-sweep/2;
+    const ox=Math.cos(mid)*5,oy=Math.sin(mid)*5;
+    const sel=selected===d.id;
+    return {...d,
+      path:`M${cx+(sel?ox:0)},${cy+(sel?oy:0)} L${x1+(sel?ox:0)},${y1+(sel?oy:0)} A${r},${r} 0 ${large},1 ${x2+(sel?ox:0)},${y2+(sel?oy:0)} Z`,
+      sel};
+  });
+  return e("svg",{width:size,height:size,viewBox:`0 0 ${size} ${size}`,style:{overflow:"visible"}},
+    ...slices.map((s,i)=>e("path",{key:i,d:s.path,fill:s.color,
+      stroke:s.sel?"#fff":"#1a2e4a",strokeWidth:s.sel?2.5:1.5,
+      style:{cursor:"pointer",opacity:selected&&!s.sel?0.4:1,transition:"opacity 0.2s"},
+      onClick:()=>onSelect(s.sel?null:s.id)})),
+    e("circle",{cx,cy,r:r*0.42,fill:"#1a3a5c",style:{pointerEvents:"none"}}),
+    e("text",{x:cx,y:cy-6,textAnchor:"middle",fontSize:9,fill:"#93C5FD",fontFamily:"DM Sans",style:{pointerEvents:"none"}},"Výdaje"),
+    e("text",{x:cx,y:cy+8,textAnchor:"middle",fontSize:10,fill:"#fff",fontWeight:"700",fontFamily:"DM Sans",style:{pointerEvents:"none"}},fmtCZK(total))
+  );
+}
+
+// ── Stable uncontrolled input (Fixed výdaje) ────────────────────────────────
+function StableInput({initialValue,onCommit,placeholder,isAmount}){
+  const ref=useRef(null);
+  useEffect(()=>{if(ref.current&&ref.current.value!==String(initialValue))ref.current.value=String(initialValue);},[initialValue]);
+  const style=isAmount
+    ?{width:"80px",flexShrink:0,border:"1.5px solid rgba(147,197,253,0.25)",borderRadius:"8px",padding:"8px 10px",fontSize:"13px",outline:"none",background:"rgba(255,255,255,0.07)",textAlign:"right",color:"#fff",fontFamily:"'DM Sans',sans-serif"}
+    :{flex:"1 1 0",minWidth:0,border:"1.5px solid rgba(147,197,253,0.25)",borderRadius:"8px",padding:"8px 10px",fontSize:"13px",outline:"none",background:"rgba(255,255,255,0.07)",color:"#fff",fontFamily:"'DM Sans',sans-serif"};
+  return e("input",{ref,defaultValue:initialValue,onBlur:ev=>onCommit(ev.target.value),onChange:()=>{},placeholder,inputMode:isAmount?"decimal":"text",autoComplete:"off",autoCorrect:"off",spellCheck:false,style});
+}
+
+// ── Dots progress ────────────────────────────────────────────────────────────
+function Dots({total,current}){
+  return div({className:"dot-row"},
+    ...Array.from({length:total},(_,i)=>div({key:i,style:{width:current>i?22:7,height:7,borderRadius:4,background:current>i?"#60A5FA":"rgba(255,255,255,0.2)",transition:"all 0.2s"}}))
+  );
+}
+
+// ── Category grid ────────────────────────────────────────────────────────────
+function CatGrid({cats,selected,onSelect}){
+  return div({className:"cat-grid"},
+    ...cats.map(cat=>btn({key:cat.id,className:"cat-btn",
+      style:{border:`2px solid ${selected===cat.id?cat.color:"rgba(255,255,255,0.12)"}`,background:selected===cat.id?cat.color+"33":"rgba(255,255,255,0.05)"},
+      onClick:()=>onSelect(cat.id)},
+      span({style:{fontSize:"20px"}},cat.icon),
+      span({className:"cat-lbl"},cat.label)
+    ))
+  );
+}
+
+// ── Type toggle ───────────────────────────────────────────────────────────────
+function TypeToggle({value,onChange}){
+  return div({className:"ttog"},
+    btn({style:{flex:1,border:"none",borderRadius:"8px",padding:"9px",fontSize:"14px",fontWeight:700,cursor:"pointer",background:value==="expense"?"#EF4444":"transparent",color:value==="expense"?"#fff":"rgba(255,255,255,0.4)"},
+      onClick:()=>onChange("expense")},"📤 Výdaj"),
+    btn({style:{flex:1,border:"none",borderRadius:"8px",padding:"9px",fontSize:"14px",fontWeight:700,cursor:"pointer",background:value==="income"?"#22C55E":"transparent",color:value==="income"?"#fff":"rgba(255,255,255,0.4)"},
+      onClick:()=>onChange("income")},"📥 Příjem")
+  );
+}
+
+function ModalClose({onClose}){
+  return btn({onClick:onClose,style:{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:"50%",width:32,height:32,fontSize:"18px",cursor:"pointer",color:"rgba(255,255,255,0.7)",display:"flex",alignItems:"center",justifyContent:"center"}},"×");
+}
+function ModalHeader({title,onClose}){
+  return div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
+    e("h2",{style:{margin:0,fontSize:"18px",fontWeight:800,color:"#fff"}},title),
+    e(ModalClose,{onClose})
+  );
+}
+function NextBtn({label,color,onClick}){
+  return btn({className:"btn-next",style:{background:color||"#2563EB"},onClick},label||"Pokračovat →");
+}
+function RowBtns({onBack,onNext,nextLabel,nextColor}){
+  return div({style:{display:"flex",gap:8,marginTop:14}},
+    btn({className:"btn-back",onClick:onBack},"← Zpět"),
+    btn({style:{flex:2,border:"none",borderRadius:"12px",padding:"13px",fontSize:"16px",fontWeight:700,cursor:"pointer",color:"#fff",background:nextColor||"#2563EB"},onClick:onNext},nextLabel||"Pokračovat →")
+  );
+}
+
+// ── AddTxWizard ───────────────────────────────────────────────────────────────
+// Steps: 1=typ+datum, 2=kategorie, 3=částka, 4=popis
+function AddTxWizard({onClose,onSave,editTx,now}){
+  const defDate=now.toISOString().slice(0,10);
+  const [step,setStep]=useState(editTx?0:1);
+  const [type,setType]=useState(editTx?editTx.type:"expense");
+  const [date,setDate]=useState(editTx?editTx.date:defDate);
+  const [cat,setCat]=useState(editTx?editTx.category:"food");
+  const [amount,setAmount]=useState(editTx?String(editTx.amount):"");
+  const [note,setNote]=useState(editTx?(editTx.note||""):"");
+
+  const cats=type==="expense"?EXPENSE_CATS:INCOME_CATS;
+  const selCat=getCat(cat);
+  const accent=type==="income"?"#16A34A":"#2563EB";
+
+  function save(){const a=parseAmt(amount);if(!a)return;onSave({type,date,category:cat,amount:a,note});}
+
+  function body(){
+    if(editTx) return [
+      e(TypeToggle,{value:type,onChange:t=>{setType(t);setCat(t==="expense"?"food":"salary");}}),
+      e("label",{className:"lbl"},"Datum"),
+      inp({className:"inp",type:"date",value:date,onChange:ev=>setDate(ev.target.value)}),
+      div({style:{height:10}}),
+      e("label",{className:"lbl"},"Kategorie"),
+      e(CatGrid,{cats,selected:cat,onSelect:setCat}),
+      div({style:{height:10}}),
+      e("label",{className:"lbl"},"Částka (Kč)"),
+      inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0,00",value:amount,onChange:ev=>setAmount(ev.target.value)}),
+      div({style:{height:10}}),
+      e("label",{className:"lbl"},"Popis platby"),
+      inp({className:"inp",type:"text",inputMode:"text",autoComplete:"off",placeholder:"Popis...",value:note,onChange:ev=>setNote(ev.target.value)}),
+      btn({className:"btn-next",style:{background:accent},onClick:save},"Uložit změny"),
+    ];
+    if(step===1) return [
+      span({className:"hint"},"Krok 1 ze 4 — Typ a datum"),
+      e(TypeToggle,{value:type,onChange:t=>{setType(t);setCat(t==="expense"?"food":"salary");}}),
+      e("label",{className:"lbl"},"Datum platby"),
+      inp({className:"inp",type:"date",value:date,onChange:ev=>setDate(ev.target.value)}),
+      e(NextBtn,{color:accent,onClick:()=>setStep(2)}),
+    ];
+    if(step===2) return [
+      span({className:"hint"},`Krok 2 ze 4 — ${type==="expense"?"📤 Výdaj":"📥 Příjem"} · ${fmtDate(date)}`),
+      e("label",{className:"lbl"},"Kategorie"),
+      e(CatGrid,{cats,selected:cat,onSelect:setCat}),
+      e(RowBtns,{onBack:()=>setStep(1),onNext:()=>setStep(3),nextColor:accent}),
+    ];
+    if(step===3) return [
+      span({className:"hint"},`Krok 3 ze 4 — ${selCat.icon} ${selCat.label} · ${fmtDate(date)}`),
+      e("label",{className:"lbl"},"Částka (Kč)"),
+      inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0,00",value:amount,onChange:ev=>setAmount(ev.target.value),autoFocus:true}),
+      e(RowBtns,{onBack:()=>setStep(2),onNext:()=>{if(parseAmt(amount)>0)setStep(4);},nextColor:accent}),
+    ];
+    if(step===4) return [
+      span({className:"hint"},`Krok 4 ze 4 — ${selCat.icon} ${selCat.label} · ${fmtCZK(parseAmt(amount))}`),
+      e("label",{className:"lbl"},"Popis platby (volitelné)"),
+      inp({className:"inp",type:"text",inputMode:"text",autoComplete:"off",placeholder:"Popis záznamu...",value:note,onChange:ev=>setNote(ev.target.value),autoFocus:true}),
+      e(RowBtns,{onBack:()=>setStep(3),onNext:save,nextLabel:"Přidat záznam ✓",nextColor:accent}),
+    ];
+    return [];
+  }
+
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
+      e(ModalHeader,{title:editTx?"Upravit záznam":"Nový záznam",onClose}),
+      !editTx&&e(Dots,{total:4,current:step}),
+      ...body()
+    )
+  );
+}
+
+// ── AddInvWizard ──────────────────────────────────────────────────────────────
+// 1=datum, 2=typ, 3=měna, 4=kusy+částka, 5=název
+function AddInvWizard({onClose,onSave,now}){
+  const defDate=now.toISOString().slice(0,10);
+  const [step,setStep]=useState(1);
+  const [date,setDate]=useState(defDate);
+  const [invType,setInvType]=useState("Akcie");
+  const [cur,setCur]=useState("CZK");
+  const [qty,setQty]=useState("");
+  const [amount,setAmount]=useState("");
+  const [name,setName]=useState("");
+
+  function save(){const a=parseAmt(amount);if(!name||!a)return;onSave({name,amount:a,qty:qty?parseAmt(qty):1,type:invType,currency:cur,date});}
+
+  function chipRow(items,val,setVal,color){
+    return div({style:{display:"flex",gap:8,marginTop:6}},
+      ...items.map(t=>btn({key:t,className:"chip",
+        style:{border:`1.5px solid ${val===t?color:"rgba(255,255,255,0.15)"}`,background:val===t?color+"33":"rgba(255,255,255,0.05)",color:val===t?"#fff":"rgba(255,255,255,0.5)",fontWeight:val===t?700:500},
+        onClick:()=>setVal(t)},t))
+    );
+  }
+
+  function body(){
+    if(step===1) return [
+      span({className:"hint"},"Krok 1 z 5 — Datum nákupu"),
+      e("label",{className:"lbl"},"Datum"),
+      inp({className:"inp",type:"date",value:date,onChange:ev=>setDate(ev.target.value)}),
+      e(NextBtn,{color:"#6366F1"}),
+    ];
+    if(step===2) return [
+      span({className:"hint"},"Krok 2 z 5 — Typ investice"),
+      e("label",{className:"lbl"},"Typ"),
+      chipRow(INV_TYPES,invType,setInvType,"#A78BFA"),
+      e(RowBtns,{onBack:()=>setStep(1),onNext:()=>setStep(3),nextColor:"#6366F1"}),
+    ];
+    if(step===3) return [
+      span({className:"hint"},`Krok 3 z 5 — Měna · ${invType}`),
+      e("label",{className:"lbl"},"Měna"),
+      chipRow(INV_CURR,cur,setCur,"#60A5FA"),
+      e(RowBtns,{onBack:()=>setStep(2),onNext:()=>setStep(4),nextColor:"#6366F1"}),
+    ];
+    if(step===4) return [
+      span({className:"hint"},`Krok 4 z 5 — ${invType} · ${cur}`),
+      div({style:{display:"flex",gap:10}},
+        div({style:{flex:1}},
+          e("label",{className:"lbl"},"Počet kusů"),
+          inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"1",value:qty,onChange:ev=>setQty(ev.target.value),autoFocus:true})
+        ),
+        div({style:{flex:1}},
+          e("label",{className:"lbl"},`Cena za kus (${cur})`),
+          inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0,00",value:amount,onChange:ev=>setAmount(ev.target.value)})
+        )
+      ),
+      amount&&div({style:{marginTop:8,textAlign:"center",fontSize:"13px",color:"#A78BFA",fontWeight:700}},
+        "Celkem: "+fmtMoney(parseAmt(amount)*(parseAmt(qty)||1),cur,true)
+      ),
+      e(RowBtns,{onBack:()=>setStep(3),onNext:()=>{if(parseAmt(amount)>0)setStep(5);},nextColor:"#6366F1"}),
+    ];
+    if(step===5) return [
+      span({className:"hint"},`Krok 5 z 5 — ${invType} · ${cur} · ${fmtMoney(parseAmt(amount)*(parseAmt(qty)||1),cur,true)}`),
+      e("label",{className:"lbl"},"Název investice"),
+      inp({className:"inp",type:"text",inputMode:"text",autoComplete:"off",placeholder:"Název...",value:name,onChange:ev=>setName(ev.target.value),autoFocus:true}),
+      e(RowBtns,{onBack:()=>setStep(4),onNext:save,nextLabel:"Přidat investici ✓",nextColor:"#6366F1"}),
+    ];
+    return [];
+  }
+
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
+      e(ModalHeader,{title:"Nová investice",onClose}),
+      e(Dots,{total:5,current:step}),
+      ...body()
+    )
+  );
+}
+
+// ── NWModal ───────────────────────────────────────────────────────────────────
+function NWModal({onClose,onSave}){
+  const [val,setVal]=useState("");
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
+      e(ModalHeader,{title:"Startovní hodnota",onClose}),
+      div({style:{fontSize:"13px",color:"rgba(255,255,255,0.55)",marginBottom:14,lineHeight:1.6}},"Zadej svůj aktuální majetek jako výchozí bod."),
+      e("label",{className:"lbl"},"Počáteční hodnota (Kč)"),
+      inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0",value:val,onChange:ev=>setVal(ev.target.value)}),
+      btn({className:"btn-next",style:{background:"#2563EB"},onClick:()=>onSave(parseAmt(val))},"Uložit")
+    )
+  );
+}
+
+// ── Fixed Section ─────────────────────────────────────────────────────────────
+function FixedSection({type,title,color,rows,onAdd,onCommit,onRemove,sum}){
+  return [
+    div({key:"sec",className:"sec"},title),
+    div({key:"card",className:"card"},
+      ...rows.map(row=>div({key:row.id,style:{display:"flex",alignItems:"center",gap:6,marginBottom:8}},
+        e(StableInput,{initialValue:row.label,onCommit:v=>onCommit(type,row.id,"label",v),placeholder:"Název...",isAmount:false}),
+        e(StableInput,{initialValue:row.amount,onCommit:v=>onCommit(type,row.id,"amount",v),placeholder:"0",isAmount:true}),
+        btn({onClick:()=>onRemove(type,row.id),style:{background:"none",border:"none",cursor:"pointer",fontSize:"16px",color:"rgba(255,255,255,0.3)",flexShrink:0,padding:"0 2px"}},"🗑")
+      )),
+      btn({onClick:()=>onAdd(type),style:{width:"100%",border:"1.5px dashed rgba(147,197,253,0.15)",borderRadius:"10px",padding:"9px",fontSize:"13px",cursor:"pointer",background:"none",color:"rgba(255,255,255,0.3)",marginTop:2}},"+ Přidat řádek"),
+      div({style:{marginTop:10,paddingTop:10,borderTop:"1px solid rgba(147,197,253,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        span({style:{fontSize:"13px",fontWeight:700,color:"#fff"}},"Celkem"),
+        span({style:{fontSize:"16px",fontWeight:800,color}},fmtCZK(sum))
+      )
+    )
+  ];
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App(){
+  const now=new Date();
+  const [txs,setTxs]=useState([]);
+  const [invs,setInvs]=useState([]);
+  const [nwStart,setNwStart]=useState(0);
+  const [cfNotes,setCfNotes]=useState({});
+  const [fixed,setFixed]=useState({necessary:[],investment:[],unnecessary:[]});
+  const [tab,setTab]=useState("transactions");
+  const [month,setMonth]=useState(now.getMonth());
+  const [year,setYear]=useState(now.getFullYear());
+  const [txFilter,setTxFilter]=useState("all");
+  const [showAdd,setShowAdd]=useState(false);
+  const [showInvAdd,setShowInvAdd]=useState(false);
+  const [showNW,setShowNW]=useState(false);
+  const [editId,setEditId]=useState(null);
+  const [selPie,setSelPie]=useState(null);
+  const topRef=useRef(null);
+
+  useEffect(()=>{
+    const d=loadData();
+    if(d){
+      setTxs(d.transactions||[]);
+      setInvs(d.investments||[]);
+      setNwStart(d.netWorthStart||0);
+      setCfNotes(d.cashflowNotes||{});
+      const f=d.fixedExpenses||{necessary:[],investment:[],unnecessary:[]};
+      if(!f.investment)f.investment=[];
+      setFixed(f);
+    }
+  },[]);
+  useEffect(()=>{saveData({transactions:txs,investments:invs,netWorthStart:nwStart,cashflowNotes:cfNotes,fixedExpenses:fixed});},[txs,invs,nwStart,cfNotes,fixed]);
+
+  function scrollTop(){window.scrollTo({top:0,behavior:"smooth"});}
+
+  const fil=txs.filter(t=>{const d=new Date(t.date);return d.getMonth()===month&&d.getFullYear()===year;});
+  const totInc=fil.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+  const totExp=fil.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const cf=totInc-totExp;
+  const allInc=txs.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+  const allExp=txs.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const nw=nwStart+allInc-allExp;
+  const invByCur=INV_CURR.reduce((a,c)=>{a[c]=invs.filter(i=>i.currency===c).reduce((s,i)=>s+i.amount*(i.qty||1),0);return a;},{});
+  const expByCat=EXPENSE_CATS.reduce((a,c)=>{a[c.id]=fil.filter(t=>t.type==="expense"&&t.category===c.id).reduce((s,t)=>s+t.amount,0);return a;},{});
+  const pieData=EXPENSE_CATS.filter(c=>expByCat[c.id]>0).sort((a,b)=>expByCat[b.id]-expByCat[a.id]).map(c=>({id:c.id,label:c.label,icon:c.icon,color:c.color,value:expByCat[c.id]}));
+  const cfKey=`${year}-${month}`;
+  const cfNote=cfNotes[cfKey]||"";
+  const sumNec=fixed.necessary.reduce((s,r)=>s+parseAmt(r.amount),0);
+  const sumInv=fixed.investment.reduce((s,r)=>s+parseAmt(r.amount),0);
+  const sumUnnec=fixed.unnecessary.reduce((s,r)=>s+parseAmt(r.amount),0);
+
+  function saveTx(data){
+    if(editId){setTxs(p=>p.map(t=>t.id===editId?{...t,...data}:t));setEditId(null);}
+    else setTxs(p=>[{id:Date.now().toString(),...data},...p]);
+    setShowAdd(false);setTimeout(scrollTop,100);
+  }
+  function saveInv(data){setInvs(p=>[{id:Date.now().toString(),...data},...p]);setShowInvAdd(false);setTimeout(scrollTop,100);}
+  function prevMonth(){if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1);}
+  function nextMonth(){if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1);}
+  function addFixedRow(type){setFixed(p=>({...p,[type]:[...p[type],{id:Date.now().toString(),label:"",amount:""}]}));}
+  function commitFixed(type,id,field,val){setFixed(p=>({...p,[type]:p[type].map(r=>r.id===id?{...r,[field]:val}:r)}));}
+  function removeFixed(type,id){setFixed(p=>({...p,[type]:p[type].filter(r=>r.id!==id)}));}
+
+  const visTxs=fil.filter(t=>txFilter==="all"||t.type===txFilter).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const byDay=visTxs.reduce((a,t)=>{if(!a[t.date])a[t.date]=[];a[t.date].push(t);return a;},{});
+  const days=Object.keys(byDay).sort((a,b)=>new Date(b)-new Date(a));
+
+  const BD="rgba(147,197,253,0.15)";
+  const TS="rgba(255,255,255,0.55)";
+  const TH="rgba(255,255,255,0.3)";
+
+  // ── Render tabs ──────────────────────────────────────────────────────────
+  function renderTransactions(){
+    return [
+      div({key:"filters",className:"fr"},
+        btn({className:"fb",style:{border:`1.5px solid ${txFilter==="all"?"#3B82F6":BD}`,background:txFilter==="all"?"rgba(59,130,246,0.25)":"rgba(255,255,255,0.04)",color:txFilter==="all"?"#93C5FD":TS,fontWeight:txFilter==="all"?700:500},onClick:()=>setTxFilter("all")},"Vše"),
+        btn({className:"fb",style:{border:`1.5px solid ${txFilter==="expense"?"#3B82F6":BD}`,background:txFilter==="expense"?"rgba(59,130,246,0.25)":"rgba(255,255,255,0.04)",color:txFilter==="expense"?"#93C5FD":TS,fontWeight:txFilter==="expense"?700:500},onClick:()=>setTxFilter("expense")},"📤 Výdaje"),
+        btn({className:"fb",style:{border:`1.5px solid ${txFilter==="income"?"#3B82F6":BD}`,background:txFilter==="income"?"rgba(59,130,246,0.25)":"rgba(255,255,255,0.04)",color:txFilter==="income"?"#93C5FD":TS,fontWeight:txFilter==="income"?700:500},onClick:()=>setTxFilter("income")},"📥 Příjmy")
+      ),
+      txFilter!=="all"&&div({key:"sum",className:"card",style:{textAlign:"center",padding:"12px 16px"}},
+        div({style:{fontSize:"12px",color:"#93C5FD",fontWeight:500}},txFilter==="expense"?"Výdaje tento měsíc":"Příjmy tento měsíc"),
+        div({style:{fontSize:"26px",fontWeight:800,color:txFilter==="expense"?"#F87171":"#4ADE80",marginTop:4}},fmtCZK(txFilter==="expense"?totExp:totInc))
+      ),
+      div({key:"list",className:"card",style:{marginTop:10,padding:"0 14px"}},
+        visTxs.length===0
+          ?div({style:{textAlign:"center",color:TH,fontSize:"14px",padding:"24px"}},"Žádné záznamy.",e("br",null),"Přidej první pomocí +")
+          :days.map((day,di)=>div({key:day},
+              div({style:{display:"flex",alignItems:"center",gap:8,padding:"10px 0 4px",borderTop:di===0?"none":`1px solid ${BD}`,marginTop:di===0?0:4}},
+                span({style:{fontSize:"11px",fontWeight:700,color:"#60A5FA",whiteSpace:"nowrap"}},fmtDate(day)),
+                div({style:{flex:1,height:1,background:BD}})
+              ),
+              ...byDay[day].map((tx,ti)=>{
+                const cat=getCat(tx.category);
+                return div({key:tx.id,className:"txi",style:{borderBottom:ti<byDay[day].length-1?`1px solid ${BD}`:"none"}},
+                  div({className:"tic",style:{background:cat.color+"33"}},span({style:{fontSize:"17px"}},cat.icon)),
+                  div({style:{flex:1,minWidth:0}},
+                    div({style:{fontSize:"13px",fontWeight:600,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},tx.note||cat.label),
+                    div({style:{fontSize:"11px",color:TS}},cat.label)
+                  ),
+                  div({style:{textAlign:"right",flexShrink:0}},
+                    div({style:{fontSize:"14px",fontWeight:700,color:tx.type==="income"?"#4ADE80":"#F87171"}},(tx.type==="income"?"+":"−")+fmtCZK(tx.amount)),
+                    div({style:{display:"flex",gap:4,justifyContent:"flex-end",marginTop:2}},
+                      btn({onClick:()=>{setEditId(tx.id);setShowAdd(true);},style:{background:"none",border:"none",cursor:"pointer",fontSize:"14px",color:TS}},"✏️"),
+                      btn({onClick:()=>setTxs(p=>p.filter(t=>t.id!==tx.id)),style:{background:"none",border:"none",cursor:"pointer",fontSize:"14px",color:TH}},"🗑")
+                    )
+                  )
+                );
+              })
+            ))
+      )
+    ].filter(Boolean);
+  }
+
+  function renderDashboard(){
+    return [
+      div({key:"nw",className:"card",style:{background:nw>=0?"linear-gradient(135deg,#0f2942,#1D4ED8)":"linear-gradient(135deg,#4c0519,#DC2626)",border:"none",cursor:"pointer"},
+        onClick:()=>setShowNW(true)},
+        div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          div(null,
+            div({style:{fontSize:"11px",color:"rgba(255,255,255,0.6)",fontWeight:500,marginBottom:4,display:"flex",alignItems:"center",gap:6}},
+              e(WalletSVG,{size:13,color:"rgba(255,255,255,0.6)"}), "Čistý majetek"),
+            div({style:{fontSize:"28px",fontWeight:800,letterSpacing:"-0.5px",color:"#fff"}},fmtCZK(nw)),
+            div({style:{fontSize:"10px",color:"rgba(255,255,255,0.4)",marginTop:3}},`Startovní: ${fmtCZK(nwStart)} · Klepni pro úpravu`)
+          ),
+          div({style:{textAlign:"right"}},
+            div({style:{fontSize:"10px",color:"rgba(255,255,255,0.5)"}},"Cash flow"),
+            div({style:{fontSize:"20px",fontWeight:800,color:cf>=0?"#86efac":"#fca5a5",marginTop:2}},(cf>=0?"+":"")+fmtCZK(cf))
+          )
+        )
+      ),
+      div({key:"cfnote",className:"card",style:{padding:"12px 14px"}},
+        div({style:{fontSize:"12px",color:"#93C5FD",fontWeight:500,marginBottom:6}},"📝 Poznámka — "+MONTHS[month]),
+        e("textarea",{className:"inp",style:{resize:"none",minHeight:"72px",lineHeight:1.5},placeholder:"Proč byl tento měsíc výkyv?",value:cfNote,inputMode:"text",onChange:ev=>setCfNotes(p=>({...p,[cfKey]:ev.target.value}))})
+      ),
+      div({key:"piesec",className:"sec"},"Výdaje dle kategorií"),
+      div({key:"pie",className:"card"},
+        pieData.length===0
+          ?div({style:{textAlign:"center",color:TH,fontSize:"13px",padding:"16px"}},"Žádné výdaje tento měsíc")
+          :div({style:{display:"flex",alignItems:"flex-start",gap:12}},
+              div({style:{flexShrink:0}},e(PieChart,{data:pieData,size:148,selected:selPie,onSelect:setSelPie})),
+              div({style:{flex:1,overflowY:"auto",maxHeight:160}},
+                ...pieData.map((d,i)=>{
+                  const tot=pieData.reduce((s,x)=>s+x.value,0);
+                  const isSel=selPie===d.id;
+                  const isDim=selPie&&!isSel;
+                  return div({key:i,className:"legend-item",
+                    style:{opacity:isDim?0.35:1,background:isSel?"rgba(255,255,255,0.08)":"transparent",border:isSel?`1px solid ${d.color}40`:"1px solid transparent"},
+                    onClick:()=>setSelPie(isSel?null:d.id)},
+                    div({style:{width:9,height:9,borderRadius:"50%",background:d.color,flexShrink:0,boxShadow:isSel?`0 0 6px ${d.color}`:"none"}}),
+                    span({style:{fontSize:"12px",color:isSel?"#fff":"#fff",flex:1,fontWeight:isSel?700:400}},`${d.icon} ${d.label}`),
+                    span({style:{fontSize:"11px",fontWeight:700,color:d.color}},Math.round((d.value/tot)*100)+"%")
+                  );
+                })
+              )
+            )
+      ),
+      div({key:"statsec",className:"sec"},"Tento měsíc"),
+      div({key:"stat",className:"card",style:{display:"flex",gap:0,padding:0,overflow:"hidden"}},
+        ...[{label:"Příjmy",val:totInc,color:"#4ADE80"},{label:"Výdaje",val:totExp,color:"#F87171"},{label:"Cash flow",val:cf,color:cf>=0?"#34D399":"#F87171"}].map((item,i)=>
+          div({key:i,style:{flex:1,textAlign:"center",padding:"14px 4px",borderRight:i<2?`1px solid ${BD}`:"none"}},
+            div({style:{fontSize:"11px",color:TS}},item.label),
+            div({style:{fontSize:"14px",fontWeight:800,color:item.color,marginTop:3}},fmtCZK(item.val))
+          )
+        )
+      )
+    ];
+  }
+
+  function renderFixed(){
+    return [
+      ...e(FixedSection,{key:"nec",type:"necessary",title:"Nutné výdaje",color:"#A78BFA",rows:fixed.necessary,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumNec}),
+      ...e(FixedSection,{key:"inv",type:"investment",title:"Investiční výdaje",color:"#38BDF8",rows:fixed.investment,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumInv}),
+      ...e(FixedSection,{key:"unn",type:"unnecessary",title:"Zbytné výdaje",color:"#F472B6",rows:fixed.unnecessary,onAdd:addFixedRow,onCommit:commitFixed,onRemove:removeFixed,sum:sumUnnec}),
+      div({key:"total",className:"card",style:{background:"linear-gradient(135deg,#0f2942,#1D4ED8)",border:"none",marginBottom:12}},
+        div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          div(null,
+            div({style:{fontSize:"11px",color:"rgba(255,255,255,0.5)",marginBottom:3}},"Celkové pravidelné výdaje"),
+            div({style:{fontSize:"26px",fontWeight:800,color:"#fff"}},fmtCZK(sumNec+sumInv+sumUnnec))
+          ),
+          div({style:{textAlign:"right",fontSize:"12px",color:"rgba(255,255,255,0.7)",lineHeight:1.9}},
+            div(null,"Nutné: ",e("b",null,fmtCZK(sumNec))),
+            div(null,"Investice: ",e("b",null,fmtCZK(sumInv))),
+            div(null,"Zbytné: ",e("b",null,fmtCZK(sumUnnec)))
+          )
+        )
+      )
+    ];
+  }
+
+  function renderInvest(){
+    return [
+      div({key:"total",className:"card",style:{background:"linear-gradient(135deg,#0c1a2e,#1e3a5f)",border:"none"}},
+        div({style:{fontSize:"12px",color:"rgba(255,255,255,0.5)",marginBottom:10}},"📈 Celkem zainvestováno"),
+        div({style:{display:"flex",gap:0}},
+          ...INV_CURR.map((c,i)=>div({key:c,style:{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,0.1)":"none",padding:"0 4px"}},
+            div({style:{fontSize:"10px",color:"rgba(255,255,255,0.4)",marginBottom:3}},c),
+            div({style:{fontSize:"16px",fontWeight:800,color:"#fff"}},fmtMoney(invByCur[c],c))
+          ))
+        ),
+        div({style:{fontSize:"11px",color:"rgba(255,255,255,0.3)",marginTop:8,textAlign:"center"}},invs.length+" pozic")
+      ),
+      div({key:"sec",className:"sec"},"Investiční portfolio"),
+      div({key:"list",className:"card"},
+        invs.length===0
+          ?div({style:{textAlign:"center",color:TH,fontSize:"14px",padding:"20px"}},"Žádné investice.",e("br",null),"Přidej pomocí +")
+          :[...invs].sort((a,b)=>(b.amount*b.qty)-(a.amount*a.qty)).map(inv=>div({key:inv.id,className:"txi"},
+              div({className:"tic",style:{background:"rgba(99,102,241,0.2)",fontSize:"20px"}},"📈"),
+              div({style:{flex:1,minWidth:0}},
+                div({style:{fontSize:"14px",fontWeight:700,color:"#fff"}},inv.name),
+                div({style:{fontSize:"11px",color:TS}},`${inv.type} · ${inv.qty>1?inv.qty+" ks · ":""}${new Date(inv.date).toLocaleDateString("cs-CZ")}`)
+              ),
+              div({style:{textAlign:"right",flexShrink:0}},
+                div({style:{fontSize:"15px",fontWeight:700,color:"#A78BFA"}},fmtMoney(inv.amount*inv.qty,inv.currency||"CZK",true)),
+                div({style:{fontSize:"10px",color:TH}},inv.currency||"CZK"),
+                btn({onClick:()=>setInvs(p=>p.filter(i=>i.id!==inv.id)),style:{background:"none",border:"none",cursor:"pointer",fontSize:"14px",color:TH}},"🗑")
+              )
+            ))
+      )
+    ];
+  }
+
+  const NAV_ITEMS=[{id:"transactions",icon:"📋",label:"Záznamy"},{id:"dashboard",icon:"📊",label:"Přehled"},{id:"fixed",icon:"🔁",label:"Výdaje"},{id:"invest",icon:"📈",label:"Investice"}];
+  const showFab=tab!=="dashboard"&&tab!=="fixed";
+
+  return div({ref:topRef,style:{fontFamily:"'DM Sans',sans-serif",background:"#1E3A5F",minHeight:"100vh",maxWidth:430,margin:"0 auto",paddingBottom:88}},
+    // HEADER
+    div({style:{background:"#152d4d",padding:"16px 20px 12px",borderBottom:`1px solid ${BD}`,position:"sticky",top:0,zIndex:10}},
+      div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+        e("h1",{style:{fontSize:"21px",fontWeight:800,color:"#fff",margin:0,letterSpacing:"-0.5px",display:"flex",alignItems:"center",gap:8}},
+          div({style:{width:32,height:32,borderRadius:9,background:"#3B82F6",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}},e(WalletSVG,{size:18})),
+          "Finance"
+        )
+      ),
+      div({style:{display:"flex",alignItems:"center",gap:8,marginTop:10}},
+        btn({style:{background:"rgba(255,255,255,0.08)",border:`1px solid ${BD}`,cursor:"pointer",fontSize:"16px",color:"#93C5FD",padding:"3px 12px",borderRadius:8},onClick:prevMonth},"‹"),
+        span({style:{fontSize:"14px",fontWeight:700,color:"#93C5FD",minWidth:110,textAlign:"center"}},MONTHS[month]+" "+year),
+        btn({style:{background:"rgba(255,255,255,0.08)",border:`1px solid ${BD}`,cursor:"pointer",fontSize:"16px",color:"#93C5FD",padding:"3px 12px",borderRadius:8},onClick:nextMonth},"›")
+      )
+    ),
+    // TAB CONTENT
+    ...(tab==="transactions"?renderTransactions():tab==="dashboard"?renderDashboard():tab==="fixed"?renderFixed():renderInvest()),
+    // FAB
+    showFab&&btn({className:"fab",onClick:()=>tab==="invest"?setShowInvAdd(true):setShowAdd(true)},"+"),
+    // NAV
+    e("nav",{className:"nav"},
+      ...NAV_ITEMS.map(n=>btn({key:n.id,className:"nb",style:{color:tab===n.id?"#60A5FA":"rgba(255,255,255,0.3)",fontWeight:tab===n.id?700:500},onClick:()=>setTab(n.id)},
+        span({style:{fontSize:"20px"}},n.icon),n.label
+      ))
+    ),
+    // MODALS
+    showAdd&&e(AddTxWizard,{now,editTx:editId?txs.find(t=>t.id===editId):null,onClose:()=>{setShowAdd(false);setEditId(null);},onSave:saveTx}),
+    showInvAdd&&e(AddInvWizard,{now,onClose:()=>setShowInvAdd(false),onSave:saveInv}),
+    showNW&&e(NWModal,{onClose:()=>setShowNW(false),onSave:v=>{setNwStart(v);setShowNW(false);}})
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(e(App,null));
 </script>
 </body>
 </html>
