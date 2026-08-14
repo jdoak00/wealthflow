@@ -19,9 +19,8 @@
     input,textarea{-webkit-user-select:text;user-select:text;font-family:'DM Sans',sans-serif;}
     input[type="date"]::-webkit-calendar-picker-indicator{opacity:0.5;}
     .card{background:#fff;border-radius:14px;padding:16px;margin:10px 12px 0;border:1px solid #e8e3dc;}
-    /* Modal — přesně přes celou šířku rámečku */
-    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:0 0 0 0;}
-    .modal-box{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;border-top:1px solid #e8e3dc;border-left:1px solid #e8e3dc;border-right:1px solid #e8e3dc;}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
+    .modal-box{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;border-top:1px solid #e8e3dc;}
     .inp{width:100%;border:1.5px solid #e0dbd3;border-radius:10px;padding:11px 14px;font-size:15px;outline:none;background:#fafaf8;color:#1a1a1a;margin-top:4px;font-family:'DM Sans',sans-serif;}
     .inp:focus{border-color:#4a90d9;background:#fff;}
     .btn-next{width:100%;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:700;cursor:pointer;margin-top:14px;color:#fff;}
@@ -32,12 +31,12 @@
     .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;}
     .cat-btn{border-radius:10px;padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
     .cat-lbl{font-size:9px;color:#555;font-weight:500;text-align:center;line-height:1.2;}
-    .chip{border-radius:10px;padding:12px 6px;font-size:14px;cursor:pointer;flex:1;text-align:center;transition:all 0.15s;border:1.5px solid #e0dbd3;background:#fafaf8;color:#888;font-weight:500;}
+    .chip{border-radius:10px;padding:12px 6px;font-size:14px;cursor:pointer;flex:1;text-align:center;border:1.5px solid #e0dbd3;background:#fafaf8;color:#888;font-weight:500;}
     .chip.sel{font-weight:700;}
     .dot-row{display:flex;gap:6px;justify-content:center;margin-bottom:18px;}
     .sec{font-size:11px;font-weight:700;color:#aaa;margin:16px 12px 0;text-transform:uppercase;letter-spacing:1.2px;}
     .fr{display:flex;gap:8px;margin:10px 12px 0;}
-    .fb{border-radius:10px;padding:8px;font-size:13px;cursor:pointer;transition:all 0.2s;text-align:center;flex:1;border:1.5px solid #e0dbd3;background:#fff;color:#888;font-weight:500;}
+    .fb{border-radius:10px;padding:8px;font-size:13px;cursor:pointer;text-align:center;flex:1;border:1.5px solid #e0dbd3;background:#fff;color:#888;font-weight:500;}
     .fb.active{border-color:#4a90d9;background:#eef5fd;color:#4a90d9;font-weight:700;}
     .txi{display:flex;align-items:center;gap:10px;padding:10px 0;}
     .tic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
@@ -46,11 +45,12 @@
     .nb.active{color:#4a90d9;font-weight:700;}
     .fab{position:fixed;bottom:76px;right:calc(50% - 215px + 16px);width:52px;height:52px;border-radius:50%;background:#4a90d9;border:none;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(74,144,217,0.35);z-index:25;}
     textarea{resize:none;}
-    .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;border-radius:8px;padding:4px 6px;border:1px solid transparent;transition:all 0.18s;}
-    /* Ikona picker */
-    .icon-pick{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 4px;}
-    .icon-opt{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #e0dbd3;background:#fafaf8;font-size:26px;transition:all 0.15s;}
+    .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;border-radius:8px;padding:4px 6px;border:1px solid transparent;}
+    .icon-pick{display:flex;gap:12px;margin:14px 0 6px;justify-content:center;}
+    .icon-opt{width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #e0dbd3;background:#fafaf8;transition:all 0.15s;}
     .icon-opt.sel{border-color:#4a90d9;background:#eef5fd;}
+    /* Skrytý input pro focus trick */
+    .focus-hack{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none;}
   </style>
 </head>
 <body>
@@ -63,7 +63,7 @@
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>
 const e=React.createElement;
-const {useState,useEffect,useRef}=React;
+const {useState,useEffect,useRef,useCallback}=React;
 
 const EXPENSE_CATS=[
   {id:"housing",label:"Bydlení",icon:"🏠",color:"#8B5CF6"},
@@ -92,15 +92,6 @@ const MONTHS=["Leden","Únor","Březen","Duben","Květen","Červen","Červenec",
 const DAYS=["Ne","Po","Út","St","Čt","Pá","So"];
 const STORAGE="wealthflow_v1";
 
-// Ikony k výběru
-const APP_ICONS=[
-  {id:"wallet",svg:true},
-  {id:"chart",emoji:"📊"},
-  {id:"money",emoji:"💰"},
-  {id:"bank",emoji:"🏦"},
-  {id:"gem",emoji:"💎"},
-];
-
 function fmtMoney(n,cur,dec=false){
   const f=dec?2:0;
   if(cur==="EUR") return new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"EUR",maximumFractionDigits:f}).format(n);
@@ -119,7 +110,7 @@ const span=(p,...c)=>e("span",p,...c);
 const btn=(p,...c)=>e("button",p,...c);
 const inp=p=>e("input",p);
 
-// SVG ikony
+// SVG ikony pro picker
 function WalletSVG({size=24,color="#4a90d9"}){
   return e("svg",{width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},
     e("path",{d:"M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-2"}),
@@ -127,12 +118,90 @@ function WalletSVG({size=24,color="#4a90d9"}){
     e("path",{d:"M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"})
   );
 }
+// Smaragdový diamant SVG
+function EmeraldSVG({size=30}){
+  return e("svg",{width:size,height:size,viewBox:"0 0 32 32",fill:"none"},
+    e("polygon",{points:"16,3 28,11 16,29 4,11",fill:"#059669",opacity:"0.15"}),
+    e("polygon",{points:"16,3 28,11 16,29 4,11",fill:"none",stroke:"#059669",strokeWidth:"1.5"}),
+    e("polygon",{points:"16,3 22,11 16,18 10,11",fill:"#10B981",opacity:"0.5"}),
+    e("polygon",{points:"4,11 28,11",fill:"none",stroke:"#059669",strokeWidth:"1.2"}),
+    e("polygon",{points:"16,3 4,11",fill:"none",stroke:"#34D399",strokeWidth:"1"}),
+    e("polygon",{points:"16,3 28,11",fill:"none",stroke:"#34D399",strokeWidth:"1"})
+  );
+}
+// Kompas SVG
+function CompassSVG({size=28,color="#4a90d9"}){
+  return e("svg",{width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},
+    e("circle",{cx:"12",cy:"12",r:"10"}),
+    e("polygon",{points:"16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76",fill:color,opacity:"0.3",stroke:color})
+  );
+}
+// Blesk SVG
+function BoltSVG({size=28,color="#F59E0B"}){
+  return e("svg",{width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},
+    e("polygon",{points:"13 2 3 14 12 14 11 22 21 10 12 10 13 2",fill:color,opacity:"0.2",stroke:color})
+  );
+}
+// Štít SVG
+function ShieldSVG({size=28,color="#8B5CF6"}){
+  return e("svg",{width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},
+    e("path",{d:"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",fill:color,opacity:"0.15",stroke:color})
+  );
+}
 
-function AppIcon({iconId,size=36,color="#4a90d9"}){
-  if(iconId==="wallet"||!iconId) return e(WalletSVG,{size,color});
-  const ico=APP_ICONS.find(i=>i.id===iconId);
-  if(!ico) return e(WalletSVG,{size,color});
-  return span({style:{fontSize:size+"px",lineHeight:1}},ico.emoji);
+const ICONS=[
+  {id:"wallet",label:"Peněženka"},
+  {id:"emerald",label:"Smaragd"},
+  {id:"compass",label:"Kompas"},
+  {id:"bolt",label:"Blesk"},
+  {id:"shield",label:"Štít"},
+];
+function renderIcon(id,size=28,color="#4a90d9"){
+  if(id==="wallet") return e(WalletSVG,{size,color});
+  if(id==="emerald") return e(EmeraldSVG,{size});
+  if(id==="compass") return e(CompassSVG,{size,color});
+  if(id==="bolt") return e(BoltSVG,{size,color:"#F59E0B"});
+  if(id==="shield") return e(ShieldSVG,{size,color:"#8B5CF6"});
+  return e(WalletSVG,{size,color});
+}
+
+// ── Klávesnice fix ─────────────────────────────────────────────────────────
+// Jediný spolehlivý způsob na iOS: input musí být v DOM před focus(),
+// nesmí být hidden, nesmí mít display:none.
+// Používáme readOnly trik + programmatic focus v useEffect.
+function AutoFocusInput({mode,placeholder,value,onChange,extraStyle}){
+  const ref=useRef(null);
+  const mounted=useRef(false);
+
+  useEffect(()=>{
+    if(mounted.current) return;
+    mounted.current=true;
+    const el=ref.current;
+    if(!el) return;
+    // iOS focus trick: krátký delay po renderu
+    const t1=setTimeout(()=>{
+      if(!el) return;
+      el.removeAttribute("readonly");
+      el.focus({preventScroll:false});
+    },80);
+    return ()=>clearTimeout(t1);
+  },[]);
+
+  return inp({
+    ref,
+    className:"inp",
+    type:"text",
+    inputMode:mode,              // "decimal" nebo "text"
+    enterKeyHint:"done",
+    autoComplete:"off",
+    autoCorrect:mode==="text"?"on":"off",
+    autoCapitalize:mode==="text"?"sentences":"none",
+    spellCheck:mode==="text",
+    placeholder,
+    value,
+    style:extraStyle||{},
+    onChange:ev=>onChange(ev.target.value),
+  });
 }
 
 function PieChart({data,size=148,selected,onSelect}){
@@ -152,8 +221,7 @@ function PieChart({data,size=148,selected,onSelect}){
     return{...d,path:`M${cx+(sel?ox:0)},${cy+(sel?oy:0)} L${x1+(sel?ox:0)},${y1+(sel?oy:0)} A${r},${r} 0 ${large},1 ${x2+(sel?ox:0)},${y2+(sel?oy:0)} Z`,sel};
   });
   return e("svg",{width:size,height:size,viewBox:`0 0 ${size} ${size}`,style:{overflow:"visible"}},
-    ...slices.map((s,i)=>e("path",{key:i,d:s.path,fill:s.color,
-      stroke:s.sel?"#fff":"#f8f8f6",strokeWidth:s.sel?3:2,
+    ...slices.map((s,i)=>e("path",{key:i,d:s.path,fill:s.color,stroke:s.sel?"#fff":"#f8f8f6",strokeWidth:s.sel?3:2,
       style:{cursor:"pointer",opacity:selected&&!s.sel?0.3:1,transition:"opacity 0.2s"},
       onClick:()=>onSelect(s.sel?null:s.id)})),
     e("circle",{cx,cy,r:r*0.42,fill:"#fff",style:{pointerEvents:"none"}}),
@@ -168,7 +236,8 @@ function StableInput({initialValue,onCommit,placeholder,isAmount}){
   const style=isAmount
     ?{width:"80px",flexShrink:0,border:"1.5px solid #e0dbd3",borderRadius:"8px",padding:"8px 10px",fontSize:"13px",outline:"none",background:"#fafaf8",textAlign:"right",color:"#1a1a1a",fontFamily:"'DM Sans',sans-serif"}
     :{flex:"1 1 0",minWidth:0,border:"1.5px solid #e0dbd3",borderRadius:"8px",padding:"8px 10px",fontSize:"13px",outline:"none",background:"#fafaf8",color:"#1a1a1a",fontFamily:"'DM Sans',sans-serif"};
-  return inp({ref,defaultValue:initialValue,onBlur:ev=>onCommit(ev.target.value),onChange:()=>{},placeholder,inputMode:isAmount?"decimal":"text",autoComplete:"off",autoCorrect:"off",spellCheck:false,style});
+  return inp({ref,defaultValue:initialValue,onBlur:ev=>onCommit(ev.target.value),onChange:()=>{},
+    placeholder,inputMode:isAmount?"decimal":"text",autoComplete:"off",autoCorrect:"off",spellCheck:false,style});
 }
 
 function Dots({total,current}){
@@ -209,42 +278,6 @@ function RowBtns({onBack,onNext,nextLabel,nextColor}){
   );
 }
 
-// ── FocusInput — vždy otevře správnou klávesnici ──────────────────────────
-// Triky pro iOS/Android: readOnly→false + focus() po minimálním delay
-function FocusInput({mode, placeholder, value, onChange, color}){
-  const ref=useRef(null);
-  // Při mountu vždy zavoláme focus
-  useEffect(()=>{
-    const el=ref.current;
-    if(!el) return;
-    // iOS vyžaduje: nejdřív readOnly false, pak focus
-    el.readOnly=false;
-    const t=setTimeout(()=>{
-      if(!el) return;
-      el.focus();
-      // Pro numerickou: selektuj vše
-      if(mode==="decimal") try{el.select();}catch(ex){}
-    },100);
-    return ()=>clearTimeout(t);
-  },[]);
-
-  return inp({
-    ref,
-    className:"inp",
-    type:"text",
-    inputMode:mode,
-    enterKeyHint:mode==="decimal"?"done":"done",
-    autoComplete:"off",
-    autoCorrect:mode==="text"?"on":"off",
-    autoCapitalize:mode==="text"?"sentences":"none",
-    spellCheck:mode==="text",
-    placeholder,
-    value,
-    style:color?{borderColor:color}:{},
-    onChange:ev=>onChange(ev.target.value),
-  });
-}
-
 // ── AddTxWizard ───────────────────────────────────────────────────────────────
 function AddTxWizard({onClose,onSave,editTx,now}){
   const defDate=now.toISOString().slice(0,10);
@@ -261,6 +294,7 @@ function AddTxWizard({onClose,onSave,editTx,now}){
 
   function save(){const a=parseAmt(amount);if(!a)return;onSave({type,date,category:cat,amount:a,note});}
 
+  // Každý krok renderuje svůj obsah — AutoFocusInput dostane nový key při změně kroku
   function body(){
     if(editTx) return [
       e(TypeToggle,{value:type,onChange:t=>{setType(t);setCat(t==="expense"?"food":"salary");}}),
@@ -291,13 +325,14 @@ function AddTxWizard({onClose,onSave,editTx,now}){
     if(step===3) return [
       span({className:"hint"},`Krok 3 ze 4 — ${selCat.icon} ${selCat.label}`),
       e("label",{className:"lbl"},"Částka (Kč)"),
-      e(FocusInput,{mode:"decimal",placeholder:"0,00",value:amount,onChange:setAmount}),
+      // key=step zajistí nový mount = nový AutoFocus
+      e(AutoFocusInput,{key:"amt-"+step,mode:"decimal",placeholder:"0,00",value:amount,onChange:setAmount}),
       e(RowBtns,{onBack:()=>setStep(2),onNext:()=>{if(parseAmt(amount)>0)setStep(4);},nextColor:accent}),
     ];
     if(step===4) return [
       span({className:"hint"},`Krok 4 ze 4 — ${selCat.icon} ${fmtCZK(parseAmt(amount))}`),
       e("label",{className:"lbl"},"Za co? (volitelné)"),
-      e(FocusInput,{mode:"text",placeholder:"Popis záznamu...",value:note,onChange:setNote}),
+      e(AutoFocusInput,{key:"note-"+step,mode:"text",placeholder:"Popis záznamu...",value:note,onChange:setNote}),
       e(RowBtns,{onBack:()=>setStep(3),onNext:save,nextLabel:"Přidat záznam ✓",nextColor:accent}),
     ];
     return [];
@@ -355,9 +390,9 @@ function AddInvWizard({onClose,onSave,now}){
     if(step===4) return [
       span({className:"hint"},`Krok 4 z 5 — ${invType} · ${cur}`),
       e("label",{className:"lbl"},"Počet kusů"),
-      e(FocusInput,{mode:"decimal",placeholder:"1",value:qty,onChange:setQty}),
+      e(AutoFocusInput,{key:"qty-"+step,mode:"decimal",placeholder:"1",value:qty,onChange:setQty}),
       e("label",{className:"lbl"},`Cena za kus (${cur})`),
-      e(FocusInput,{mode:"decimal",placeholder:"0,00",value:amount,onChange:setAmount}),
+      inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0,00",value:amount,onChange:ev=>setAmount(ev.target.value)}),
       amount&&div({style:{marginTop:8,textAlign:"center",fontSize:"13px",color:"#6366F1",fontWeight:700}},
         "Celkem: "+fmtMoney(parseAmt(amount)*(parseAmt(qty)||1),cur,true)),
       e(RowBtns,{onBack:()=>setStep(3),onNext:()=>{if(parseAmt(amount)>0)setStep(5);},nextColor:"#6366F1"}),
@@ -365,7 +400,7 @@ function AddInvWizard({onClose,onSave,now}){
     if(step===5) return [
       span({className:"hint"},`Krok 5 z 5 — ${invType} · ${cur} · ${fmtMoney(parseAmt(amount)*(parseAmt(qty)||1),cur,true)}`),
       e("label",{className:"lbl"},"Název investice"),
-      e(FocusInput,{mode:"text",placeholder:"Název...",value:name,onChange:setName}),
+      e(AutoFocusInput,{key:"name-"+step,mode:"text",placeholder:"Název...",value:name,onChange:setName}),
       e(RowBtns,{onBack:()=>setStep(4),onNext:save,nextLabel:"Přidat investici ✓",nextColor:"#6366F1"}),
     ];
     return [];
@@ -393,21 +428,17 @@ function NWModal({onClose,onSave}){
   );
 }
 
-// Picker ikon pro záhlaví
 function IconPickerModal({current,onSelect,onClose}){
-  const icons=["wallet","chart","money","bank","gem"];
-  const labels={wallet:"Peněženka",chart:"Graf",money:"Peníze",bank:"Banka",gem:"Diamant"};
   return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
     div({className:"modal-box"},
       e(ModalHdr,{title:"Vyber ikonu",onClose}),
       div({className:"icon-pick"},
-        ...icons.map(id=>btn({key:id,className:"icon-opt"+(current===id?" sel":""),
-          onClick:()=>{onSelect(id);onClose();}},
-          id==="wallet"?e(WalletSVG,{size:28,color:current===id?"#4a90d9":"#888"}):span({style:{fontSize:"28px"}},APP_ICONS.find(i=>i.id===id)?.emoji||"")
+        ...ICONS.map(ic=>div({key:ic.id,style:{display:"flex",flexDirection:"column",alignItems:"center",gap:6}},
+          btn({className:"icon-opt"+(current===ic.id?" sel":""),onClick:()=>{onSelect(ic.id);onClose();}},
+            renderIcon(ic.id,30)
+          ),
+          span({style:{fontSize:"11px",color:"#888",textAlign:"center"}},ic.label)
         ))
-      ),
-      div({style:{display:"flex",gap:10,flexWrap:"wrap",marginTop:4}},
-        ...icons.map(id=>div({key:id,style:{flex:1,textAlign:"center",fontSize:"11px",color:"#888"}},labels[id]))
       )
     )
   );
@@ -514,11 +545,11 @@ function App(){
   function saveInv(data){setInvs(p=>[{id:Date.now().toString(),...data},...p]);setShowInvAdd(false);setTimeout(scrollTop,100);}
   function prevMonth(){if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1);}
   function nextMonth(){if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1);}
-  function addFixedRow(type){setFixed(p=>({...p,[type]:[...p[type],{id:Date.now().toString(),label:"",amount:""}]}));}
-  function commitFixed(type,id,field,val){setFixed(p=>({...p,[type]:p[type].map(r=>r.id===id?{...r,[field]:val}:r)}));}
-  function removeFixed(type,id){setFixed(p=>({...p,[type]:p[type].filter(r=>r.id!==id)}));}
+  function addFixedRow(t){setFixed(p=>({...p,[t]:[...p[t],{id:Date.now().toString(),label:"",amount:""}]}));}
+  function commitFixed(t,id,f,v){setFixed(p=>({...p,[t]:p[t].map(r=>r.id===id?{...r,[f]:v}:r)}));}
+  function removeFixed(t,id){setFixed(p=>({...p,[t]:p[t].filter(r=>r.id!==id)}));}
   function addHouseRow(){setHouse(p=>[...p,{id:Date.now().toString(),label:"",amount:""}]);}
-  function commitHouse(id,field,val){setHouse(p=>p.map(r=>r.id===id?{...r,[field]:val}:r));}
+  function commitHouse(id,f,v){setHouse(p=>p.map(r=>r.id===id?{...r,[f]:v}:r));}
   function removeHouse(id){setHouse(p=>p.filter(r=>r.id!==id));}
 
   const visTxs=fil.filter(t=>txFilter==="all"||t.type===txFilter).sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -526,8 +557,8 @@ function App(){
   const days=Object.keys(byDay).sort((a,b)=>new Date(b)-new Date(a));
   const BD="#e8e3dc",TS="#888",TH="#ccc";
 
-  // Zkrácené popisky měn
-  const CUR_LABEL={CZK:"Kč",EUR:"€",USD:"$"};
+  // Formát čísla s označením měny vedle
+  const CUR_SYMBOL={CZK:"Kč",EUR:"€",USD:"$"};
 
   function renderTransactions(){
     return [
@@ -645,19 +676,23 @@ function App(){
 
   function renderInvest(){
     return [
-      // Tabulka investic — zkrácené popisky měn (Kč, €, $)
       div({key:"total",className:"card",style:{background:"linear-gradient(135deg,#2d1f5e,#6366F1)",border:"none"}},
-        div({style:{fontSize:"12px",color:"rgba(255,255,255,0.6)",marginBottom:10}},"📈 Celkem zainvestováno"),
+        div({style:{fontSize:"12px",color:"rgba(255,255,255,0.6)",marginBottom:12}},"📈 Celkem zainvestováno"),
+        // Měny vedle sebe: číslo + symbol měny
         div({style:{display:"flex",gap:0}},
-          ...INV_CURR.map((c,i)=>div({key:c,style:{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,0.15)":"none",padding:"0 6px"}},
-            div({style:{fontSize:"11px",color:"rgba(255,255,255,0.55)",marginBottom:4}},CUR_LABEL[c]),
-            div({style:{fontSize:"17px",fontWeight:800,color:"#fff"}},
-              // Zobrazit jen číslo bez symbolu měny
-              new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:0}).format(invByCur[c])
-            )
-          ))
+          ...INV_CURR.map((c,i)=>{
+            const val=invByCur[c];
+            const sym=CUR_SYMBOL[c];
+            const numStr=new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:0}).format(val);
+            return div({key:c,style:{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,0.15)":"none",padding:"0 6px"}},
+              div({style:{display:"flex",alignItems:"baseline",justifyContent:"center",gap:4}},
+                span({style:{fontSize:"18px",fontWeight:800,color:"#fff"}},numStr),
+                span({style:{fontSize:"13px",fontWeight:600,color:"rgba(255,255,255,0.6)"}},sym)
+              )
+            );
+          })
         ),
-        div({style:{fontSize:"11px",color:"rgba(255,255,255,0.4)",marginTop:8,textAlign:"center"}},invs.length+" pozic")
+        div({style:{fontSize:"11px",color:"rgba(255,255,255,0.4)",marginTop:10,textAlign:"center"}},invs.length+" pozic")
       ),
       div({key:"sec",className:"sec"},"Investiční portfolio"),
       div({key:"list",className:"card"},
@@ -690,38 +725,32 @@ function App(){
     {id:"invest",icon:"📈",label:"Investice"},
     {id:"house",icon:"🇭🇷",label:"Domek"},
   ];
-  const showFab=tab==="transactions"||tab==="invest";
 
   return div({style:{display:"flex",flexDirection:"column",height:"100%",minHeight:0}},
     // HEADER
     div({style:{background:"#fff",padding:"12px 16px 10px",borderBottom:"1px solid #e8e3dc",flexShrink:0}},
-      div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
-        // Ikonka (kliknutím otevře picker) + název
-        div({style:{display:"flex",alignItems:"center",gap:10}},
-          btn({onClick:()=>setShowIconPick(true),style:{background:"#eef5fd",border:"1.5px solid #c8ddf5",borderRadius:12,width:44,height:44,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0}},
-            e(AppIcon,{iconId:appIcon,size:28,color:"#4a90d9"})
-          ),
-          e("h1",{style:{fontSize:"16px",fontWeight:800,color:"#1a1a1a",margin:0,lineHeight:1.2}},"Správa účtu",e("br",null),"a investic")
-        )
+      div({style:{display:"flex",alignItems:"center",gap:10}},
+        btn({onClick:()=>setShowIconPick(true),style:{background:"#eef5fd",border:"1.5px solid #c8ddf5",borderRadius:12,width:46,height:46,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0}},
+          renderIcon(appIcon,28,"#4a90d9")
+        ),
+        // Nápis na jednom řádku
+        e("h1",{style:{fontSize:"16px",fontWeight:800,color:"#1a1a1a",margin:0,whiteSpace:"nowrap"}},"Správa účtu a investic")
       ),
-      // Měsíc
       div({style:{display:"flex",alignItems:"center",gap:8,marginTop:10}},
         btn({style:{background:"#f5f2ee",border:"1px solid #e0dbd3",cursor:"pointer",fontSize:"18px",color:"#888",padding:"3px 14px",borderRadius:8},onClick:prevMonth},"‹"),
         span({style:{fontSize:"18px",fontWeight:800,color:"#1a1a1a",minWidth:130,textAlign:"center"}},MONTHS[month]+" "+year),
         btn({style:{background:"#f5f2ee",border:"1px solid #e0dbd3",cursor:"pointer",fontSize:"18px",color:"#888",padding:"3px 14px",borderRadius:8},onClick:nextMonth},"›")
       )
     ),
-    // SCROLL OBLAST
     div({ref:scrollRef,className:"scroll-area"},
       ...(tab==="transactions"?renderTransactions():tab==="dashboard"?renderDashboard():tab==="fixed"?renderFixed():tab==="invest"?renderInvest():renderHouse())
     ),
-    // NAV
     e("nav",{className:"nav"},
       ...NAV.map(n=>btn({key:n.id,className:`nb${tab===n.id?" active":""}`,onClick:()=>setTab(n.id)},
         span({style:{fontSize:"20px"}},n.icon),n.label
       ))
     ),
-    showFab&&btn({className:"fab",onClick:()=>tab==="invest"?setShowInvAdd(true):setShowAdd(true)},"+"),
+    (tab==="transactions"||tab==="invest")&&btn({className:"fab",onClick:()=>tab==="invest"?setShowInvAdd(true):setShowAdd(true)},"+"),
     showAdd&&e(AddTxWizard,{now,editTx:editId?txs.find(t=>t.id===editId):null,onClose:()=>{setShowAdd(false);setEditId(null);},onSave:saveTx}),
     showInvAdd&&e(AddInvWizard,{now,onClose:()=>setShowInvAdd(false),onSave:saveInv}),
     showNW&&e(NWModal,{onClose:()=>setShowNW(false),onSave:v=>{setNwStart(v);setShowNW(false);}}),
