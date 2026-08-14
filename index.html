@@ -6,76 +6,34 @@
   <meta name="theme-color" content="#4a90d9"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-  <meta name="apple-mobile-web-app-title" content="Finance"/>
-  <title>Finance</title>
+  <meta name="apple-mobile-web-app-title" content="Správa účtu"/>
+  <title>Správa účtu a investic</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet"/>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     html,body{height:100%;background:#d6d0c8;}
     body{font-family:'DM Sans',sans-serif;}
-    #root{
-      max-width:430px;
-      margin:0 auto;
-      padding:10px;
-      height:100%;
-      display:flex;
-      flex-direction:column;
-    }
-    .frame{
-      border:4px solid #b0a898;
-      border-radius:22px;
-      overflow:hidden;
-      flex:1;
-      display:flex;
-      flex-direction:column;
-      background:#f8f8f6;
-      min-height:0;
-    }
-    .frame-inner{
-      flex:1;
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-      overflow:hidden;
-    }
-    .scroll-area{
-      flex:1;
-      overflow-y:auto;
-      -webkit-overflow-scrolling:touch;
-      padding-bottom:8px;
-    }
+    #root{max-width:430px;margin:0 auto;padding:10px;height:100%;display:flex;flex-direction:column;}
+    .frame{border:4px solid #b0a898;border-radius:22px;overflow:hidden;flex:1;display:flex;flex-direction:column;background:#f8f8f6;min-height:0;}
+    .scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;}
     input,textarea{-webkit-user-select:text;user-select:text;font-family:'DM Sans',sans-serif;}
     input[type="date"]::-webkit-calendar-picker-indicator{opacity:0.5;}
-    .card{background:#ffffff;border-radius:14px;padding:16px;margin:10px 12px 0;border:1px solid #e8e3dc;}
-    .modal-bg{
-      position:fixed;inset:0;
-      background:rgba(0,0,0,0.4);
-      z-index:50;
-      display:flex;
-      align-items:flex-end;
-      justify-content:center;
-    }
-    .modal-box{
-      background:#ffffff;
-      border-radius:20px 20px 0 0;
-      padding:24px 20px 36px;
-      width:100%;
-      max-width:430px;
-      max-height:88vh;
-      overflow-y:auto;
-      border:1px solid #e8e3dc;
-    }
+    .card{background:#fff;border-radius:14px;padding:16px;margin:10px 12px 0;border:1px solid #e8e3dc;}
+    /* Modal — přesně přes celou šířku rámečku */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:0 0 0 0;}
+    .modal-box{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;border-top:1px solid #e8e3dc;border-left:1px solid #e8e3dc;border-right:1px solid #e8e3dc;}
     .inp{width:100%;border:1.5px solid #e0dbd3;border-radius:10px;padding:11px 14px;font-size:15px;outline:none;background:#fafaf8;color:#1a1a1a;margin-top:4px;font-family:'DM Sans',sans-serif;}
     .inp:focus{border-color:#4a90d9;background:#fff;}
     .btn-next{width:100%;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:700;cursor:pointer;margin-top:14px;color:#fff;}
     .btn-back{background:#f5f2ee;color:#555;border:1.5px solid #e0dbd3;border-radius:12px;padding:13px 0;font-size:15px;font-weight:600;cursor:pointer;flex:1;}
-    .lbl{font-size:12px;color:#888;font-weight:500;margin-bottom:4px;display:block;margin-top:2px;}
+    .lbl{font-size:12px;color:#888;font-weight:500;margin-bottom:2px;display:block;margin-top:10px;}
     .hint{font-size:12px;color:#aaa;margin-bottom:14px;}
     .ttog{display:flex;background:#f0ede8;border-radius:10px;padding:3px;margin-bottom:14px;}
     .cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px;}
     .cat-btn{border-radius:10px;padding:8px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
     .cat-lbl{font-size:9px;color:#555;font-weight:500;text-align:center;line-height:1.2;}
-    .chip{border-radius:10px;padding:12px 6px;font-size:14px;cursor:pointer;flex:1;text-align:center;transition:all 0.15s;}
+    .chip{border-radius:10px;padding:12px 6px;font-size:14px;cursor:pointer;flex:1;text-align:center;transition:all 0.15s;border:1.5px solid #e0dbd3;background:#fafaf8;color:#888;font-weight:500;}
+    .chip.sel{font-weight:700;}
     .dot-row{display:flex;gap:6px;justify-content:center;margin-bottom:18px;}
     .sec{font-size:11px;font-weight:700;color:#aaa;margin:16px 12px 0;text-transform:uppercase;letter-spacing:1.2px;}
     .fr{display:flex;gap:8px;margin:10px 12px 0;}
@@ -83,33 +41,29 @@
     .fb.active{border-color:#4a90d9;background:#eef5fd;color:#4a90d9;font-weight:700;}
     .txi{display:flex;align-items:center;gap:10px;padding:10px 0;}
     .tic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-    /* Nav — sticky v rámci .frame, nikdy nescrolluje */
-    .nav{
-      flex-shrink:0;
-      background:#fff;
-      border-top:1px solid #e8e3dc;
-      display:flex;
-      z-index:20;
-    }
+    .nav{flex-shrink:0;background:#fff;border-top:1px solid #e8e3dc;display:flex;z-index:20;}
     .nb{flex:1;border:none;background:none;padding:8px 0 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:9px;font-weight:500;font-family:'DM Sans',sans-serif;color:#bbb;}
     .nb.active{color:#4a90d9;font-weight:700;}
-    .fab{position:fixed;bottom:80px;right:calc(50% - 215px + 16px);width:52px;height:52px;border-radius:50%;background:#4a90d9;border:none;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(74,144,217,0.35);z-index:25;}
+    .fab{position:fixed;bottom:76px;right:calc(50% - 215px + 16px);width:52px;height:52px;border-radius:50%;background:#4a90d9;border:none;color:#fff;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(74,144,217,0.35);z-index:25;}
     textarea{resize:none;}
     .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;border-radius:8px;padding:4px 6px;border:1px solid transparent;transition:all 0.18s;}
+    /* Ikona picker */
+    .icon-pick{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 4px;}
+    .icon-opt{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #e0dbd3;background:#fafaf8;font-size:26px;transition:all 0.15s;}
+    .icon-opt.sel{border-color:#4a90d9;background:#eef5fd;}
   </style>
 </head>
 <body>
 <div id="root">
   <div class="frame">
-    <div class="frame-inner" id="app-frame"></div>
+    <div id="app-frame" style="display:flex;flex-direction:column;height:100%;min-height:0;"></div>
   </div>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>
-const e = React.createElement;
-const {useState,useEffect,useRef} = React;
+const e=React.createElement;
+const {useState,useEffect,useRef}=React;
 
 const EXPENSE_CATS=[
   {id:"housing",label:"Bydlení",icon:"🏠",color:"#8B5CF6"},
@@ -138,6 +92,15 @@ const MONTHS=["Leden","Únor","Březen","Duben","Květen","Červen","Červenec",
 const DAYS=["Ne","Po","Út","St","Čt","Pá","So"];
 const STORAGE="wealthflow_v1";
 
+// Ikony k výběru
+const APP_ICONS=[
+  {id:"wallet",svg:true},
+  {id:"chart",emoji:"📊"},
+  {id:"money",emoji:"💰"},
+  {id:"bank",emoji:"🏦"},
+  {id:"gem",emoji:"💎"},
+];
+
 function fmtMoney(n,cur,dec=false){
   const f=dec?2:0;
   if(cur==="EUR") return new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"EUR",maximumFractionDigits:f}).format(n);
@@ -154,14 +117,22 @@ function saveData(d){try{localStorage.setItem(STORAGE,JSON.stringify(d));}catch{
 const div=(p,...c)=>e("div",p,...c);
 const span=(p,...c)=>e("span",p,...c);
 const btn=(p,...c)=>e("button",p,...c);
-const inp=(p)=>e("input",p);
+const inp=p=>e("input",p);
 
-function WalletSVG({size=18,color="#4a90d9"}){
+// SVG ikony
+function WalletSVG({size=24,color="#4a90d9"}){
   return e("svg",{width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},
     e("path",{d:"M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-2"}),
     e("path",{d:"M16 12h4v4h-4a2 2 0 0 1 0-4z"}),
     e("path",{d:"M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"})
   );
+}
+
+function AppIcon({iconId,size=36,color="#4a90d9"}){
+  if(iconId==="wallet"||!iconId) return e(WalletSVG,{size,color});
+  const ico=APP_ICONS.find(i=>i.id===iconId);
+  if(!ico) return e(WalletSVG,{size,color});
+  return span({style:{fontSize:size+"px",lineHeight:1}},ico.emoji);
 }
 
 function PieChart({data,size=148,selected,onSelect}){
@@ -219,12 +190,8 @@ function CatGrid({cats,selected,onSelect}){
 
 function TypeToggle({value,onChange}){
   return div({className:"ttog"},
-    btn({style:{flex:1,border:"none",borderRadius:"8px",padding:"9px",fontSize:"14px",fontWeight:700,cursor:"pointer",
-      background:value==="expense"?"#EF4444":"transparent",color:value==="expense"?"#fff":"#aaa"},
-      onClick:()=>onChange("expense")},"📤 Výdaj"),
-    btn({style:{flex:1,border:"none",borderRadius:"8px",padding:"9px",fontSize:"14px",fontWeight:700,cursor:"pointer",
-      background:value==="income"?"#22C55E":"transparent",color:value==="income"?"#fff":"#aaa"},
-      onClick:()=>onChange("income")},"📥 Příjem")
+    btn({style:{flex:1,border:"none",borderRadius:"8px",padding:"9px",fontSize:"14px",fontWeight:700,cursor:"pointer",background:value==="expense"?"#EF4444":"transparent",color:value==="expense"?"#fff":"#aaa"},onClick:()=>onChange("expense")},"📤 Výdaj"),
+    btn({style:{flex:1,border:"none",borderRadius:"8px",padding:"9px",fontSize:"14px",fontWeight:700,cursor:"pointer",background:value==="income"?"#22C55E":"transparent",color:value==="income"?"#fff":"#aaa"},onClick:()=>onChange("income")},"📥 Příjem")
   );
 }
 
@@ -234,14 +201,48 @@ function ModalHdr({title,onClose}){
     btn({onClick:onClose,style:{background:"#f5f2ee",border:"none",borderRadius:"50%",width:32,height:32,fontSize:"20px",cursor:"pointer",color:"#888",display:"flex",alignItems:"center",justifyContent:"center"}},"×")
   );
 }
-function NextBtn({label,color,onClick}){
-  return btn({className:"btn-next",style:{background:color||"#4a90d9"},onClick},label||"Pokračovat →");
-}
+
 function RowBtns({onBack,onNext,nextLabel,nextColor}){
   return div({style:{display:"flex",gap:8,marginTop:14}},
     btn({className:"btn-back",onClick:onBack},"← Zpět"),
     btn({style:{flex:2,border:"none",borderRadius:"12px",padding:"13px",fontSize:"16px",fontWeight:700,cursor:"pointer",color:"#fff",background:nextColor||"#4a90d9"},onClick:onNext},nextLabel||"Pokračovat →")
   );
+}
+
+// ── FocusInput — vždy otevře správnou klávesnici ──────────────────────────
+// Triky pro iOS/Android: readOnly→false + focus() po minimálním delay
+function FocusInput({mode, placeholder, value, onChange, color}){
+  const ref=useRef(null);
+  // Při mountu vždy zavoláme focus
+  useEffect(()=>{
+    const el=ref.current;
+    if(!el) return;
+    // iOS vyžaduje: nejdřív readOnly false, pak focus
+    el.readOnly=false;
+    const t=setTimeout(()=>{
+      if(!el) return;
+      el.focus();
+      // Pro numerickou: selektuj vše
+      if(mode==="decimal") try{el.select();}catch(ex){}
+    },100);
+    return ()=>clearTimeout(t);
+  },[]);
+
+  return inp({
+    ref,
+    className:"inp",
+    type:"text",
+    inputMode:mode,
+    enterKeyHint:mode==="decimal"?"done":"done",
+    autoComplete:"off",
+    autoCorrect:mode==="text"?"on":"off",
+    autoCapitalize:mode==="text"?"sentences":"none",
+    spellCheck:mode==="text",
+    placeholder,
+    value,
+    style:color?{borderColor:color}:{},
+    onChange:ev=>onChange(ev.target.value),
+  });
 }
 
 // ── AddTxWizard ───────────────────────────────────────────────────────────────
@@ -253,21 +254,10 @@ function AddTxWizard({onClose,onSave,editTx,now}){
   const [cat,setCat]=useState(editTx?editTx.category:"food");
   const [amount,setAmount]=useState(editTx?String(editTx.amount):"");
   const [note,setNote]=useState(editTx?(editTx.note||""):"");
-  const noteRef=useRef(null);
-  const amountRef=useRef(null);
 
   const cats=type==="expense"?EXPENSE_CATS:INCOME_CATS;
   const selCat=getCat(cat);
   const accent=type==="income"?"#16A34A":"#4a90d9";
-
-  useEffect(()=>{
-    if(step===3 && amountRef.current){
-      setTimeout(()=>amountRef.current&&amountRef.current.focus(),200);
-    }
-    if(step===4 && noteRef.current){
-      setTimeout(()=>noteRef.current&&noteRef.current.focus(),200);
-    }
-  },[step]);
 
   function save(){const a=parseAmt(amount);if(!a)return;onSave({type,date,category:cat,amount:a,note});}
 
@@ -276,15 +266,13 @@ function AddTxWizard({onClose,onSave,editTx,now}){
       e(TypeToggle,{value:type,onChange:t=>{setType(t);setCat(t==="expense"?"food":"salary");}}),
       e("label",{className:"lbl"},"Datum"),
       inp({className:"inp",type:"date",value:date,onChange:ev=>setDate(ev.target.value)}),
-      div({style:{height:10}}),
+      div({style:{height:8}}),
       e("label",{className:"lbl"},"Kategorie"),
       e(CatGrid,{cats,selected:cat,onSelect:setCat}),
-      div({style:{height:10}}),
       e("label",{className:"lbl"},"Částka (Kč)"),
       inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0,00",value:amount,onChange:ev=>setAmount(ev.target.value)}),
-      div({style:{height:10}}),
       e("label",{className:"lbl"},"Za co?"),
-      inp({className:"inp",type:"text",inputMode:"text",autoComplete:"off",autoCorrect:"off",autoCapitalize:"sentences",placeholder:"Popis...",value:note,onChange:ev=>setNote(ev.target.value)}),
+      inp({className:"inp",type:"text",inputMode:"text",autoComplete:"off",autoCorrect:"on",autoCapitalize:"sentences",spellCheck:true,placeholder:"Popis...",value:note,onChange:ev=>setNote(ev.target.value)}),
       btn({className:"btn-next",style:{background:accent},onClick:save},"Uložit změny"),
     ];
     if(step===1) return [
@@ -292,45 +280,31 @@ function AddTxWizard({onClose,onSave,editTx,now}){
       e(TypeToggle,{value:type,onChange:t=>{setType(t);setCat(t==="expense"?"food":"salary");}}),
       e("label",{className:"lbl"},"Datum platby"),
       inp({className:"inp",type:"date",value:date,onChange:ev=>setDate(ev.target.value)}),
-      e(NextBtn,{color:accent,onClick:()=>setStep(2)}),
+      btn({className:"btn-next",style:{background:accent},onClick:()=>setStep(2)},"Pokračovat →"),
     ];
     if(step===2) return [
-      span({className:"hint"},`Krok 2 ze 4 — ${type==="expense"?"📤 Výdaj":"📥 Příjem"} · ${fmtDate(date)}`),
+      span({className:"hint"},`Krok 2 ze 4 — ${type==="expense"?"📤":"📥"} ${fmtDate(date)}`),
       e("label",{className:"lbl"},"Kategorie"),
       e(CatGrid,{cats,selected:cat,onSelect:setCat}),
       e(RowBtns,{onBack:()=>setStep(1),onNext:()=>setStep(3),nextColor:accent}),
     ];
     if(step===3) return [
-      span({className:"hint"},`Krok 3 ze 4 — ${selCat.icon} ${selCat.label} · ${fmtDate(date)}`),
+      span({className:"hint"},`Krok 3 ze 4 — ${selCat.icon} ${selCat.label}`),
       e("label",{className:"lbl"},"Částka (Kč)"),
-      inp({ref:amountRef,className:"inp",type:"text",inputMode:"decimal",placeholder:"0,00",value:amount,onChange:ev=>setAmount(ev.target.value)}),
+      e(FocusInput,{mode:"decimal",placeholder:"0,00",value:amount,onChange:setAmount}),
       e(RowBtns,{onBack:()=>setStep(2),onNext:()=>{if(parseAmt(amount)>0)setStep(4);},nextColor:accent}),
     ];
     if(step===4) return [
-      span({className:"hint"},`Krok 4 ze 4 — ${selCat.icon} ${selCat.label} · ${fmtCZK(parseAmt(amount))}`),
+      span({className:"hint"},`Krok 4 ze 4 — ${selCat.icon} ${fmtCZK(parseAmt(amount))}`),
       e("label",{className:"lbl"},"Za co? (volitelné)"),
-      inp({
-        ref:noteRef,
-        className:"inp",
-        type:"text",
-        inputMode:"text",
-        enterKeyHint:"done",
-        autoComplete:"off",
-        autoCorrect:"off",
-        autoCapitalize:"sentences",
-        spellCheck:true,
-        placeholder:"Popis záznamu...",
-        value:note,
-        onChange:ev=>setNote(ev.target.value)
-      }),
+      e(FocusInput,{mode:"text",placeholder:"Popis záznamu...",value:note,onChange:setNote}),
       e(RowBtns,{onBack:()=>setStep(3),onNext:save,nextLabel:"Přidat záznam ✓",nextColor:accent}),
     ];
     return [];
   }
 
-  return div({style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"},
-    onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
-    div({style:{background:"#fff",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:"430px",maxHeight:"88vh",overflowY:"auto",border:"1px solid #e8e3dc"}},
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
       e(ModalHdr,{title:editTx?"Upravit záznam":"Nový záznam",onClose}),
       !editTx&&e(Dots,{total:4,current:step}),
       ...body()
@@ -338,7 +312,7 @@ function AddTxWizard({onClose,onSave,editTx,now}){
   );
 }
 
-// ── AddInvWizard ─────────────────────────────────────────────────────────────
+// ── AddInvWizard ──────────────────────────────────────────────────────────────
 function AddInvWizard({onClose,onSave,now}){
   const defDate=now.toISOString().slice(0,10);
   const [step,setStep]=useState(1);
@@ -353,8 +327,8 @@ function AddInvWizard({onClose,onSave,now}){
 
   function chipRow(items,val,setVal,color){
     return div({style:{display:"flex",gap:8,marginTop:6}},
-      ...items.map(t=>btn({key:t,className:"chip",
-        style:{border:`1.5px solid ${val===t?color:"#e0dbd3"}`,background:val===t?color+"18":"#fafaf8",color:val===t?color:"#888",fontWeight:val===t?700:500},
+      ...items.map(t=>btn({key:t,className:"chip"+(val===t?" sel":""),
+        style:val===t?{borderColor:color,background:color+"18",color:color}:{},
         onClick:()=>setVal(t)},t))
     );
   }
@@ -364,7 +338,6 @@ function AddInvWizard({onClose,onSave,now}){
       span({className:"hint"},"Krok 1 z 5 — Datum nákupu"),
       e("label",{className:"lbl"},"Datum"),
       inp({className:"inp",type:"date",value:date,onChange:ev=>setDate(ev.target.value)}),
-      // Tlačítko pokračovat — nekontrolujeme datum, vždy je nastaveno
       btn({className:"btn-next",style:{background:"#6366F1"},onClick:()=>setStep(2)},"Pokračovat →"),
     ];
     if(step===2) return [
@@ -381,16 +354,10 @@ function AddInvWizard({onClose,onSave,now}){
     ];
     if(step===4) return [
       span({className:"hint"},`Krok 4 z 5 — ${invType} · ${cur}`),
-      div({style:{display:"flex",gap:10}},
-        div({style:{flex:1}},
-          e("label",{className:"lbl"},"Počet kusů"),
-          inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"1",value:qty,onChange:ev=>setQty(ev.target.value),autoFocus:true})
-        ),
-        div({style:{flex:1}},
-          e("label",{className:"lbl"},`Cena za kus (${cur})`),
-          inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0,00",value:amount,onChange:ev=>setAmount(ev.target.value)})
-        )
-      ),
+      e("label",{className:"lbl"},"Počet kusů"),
+      e(FocusInput,{mode:"decimal",placeholder:"1",value:qty,onChange:setQty}),
+      e("label",{className:"lbl"},`Cena za kus (${cur})`),
+      e(FocusInput,{mode:"decimal",placeholder:"0,00",value:amount,onChange:setAmount}),
       amount&&div({style:{marginTop:8,textAlign:"center",fontSize:"13px",color:"#6366F1",fontWeight:700}},
         "Celkem: "+fmtMoney(parseAmt(amount)*(parseAmt(qty)||1),cur,true)),
       e(RowBtns,{onBack:()=>setStep(3),onNext:()=>{if(parseAmt(amount)>0)setStep(5);},nextColor:"#6366F1"}),
@@ -398,16 +365,14 @@ function AddInvWizard({onClose,onSave,now}){
     if(step===5) return [
       span({className:"hint"},`Krok 5 z 5 — ${invType} · ${cur} · ${fmtMoney(parseAmt(amount)*(parseAmt(qty)||1),cur,true)}`),
       e("label",{className:"lbl"},"Název investice"),
-      inp({className:"inp",type:"text",inputMode:"text",autoComplete:"off",autoCapitalize:"words",
-        placeholder:"Název...",value:name,onChange:ev=>setName(ev.target.value),autoFocus:true}),
+      e(FocusInput,{mode:"text",placeholder:"Název...",value:name,onChange:setName}),
       e(RowBtns,{onBack:()=>setStep(4),onNext:save,nextLabel:"Přidat investici ✓",nextColor:"#6366F1"}),
     ];
     return [];
   }
 
-  return div({style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"},
-    onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
-    div({style:{background:"#fff",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:"430px",maxHeight:"88vh",overflowY:"auto",border:"1px solid #e8e3dc"}},
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
       e(ModalHdr,{title:"Nová investice",onClose}),
       e(Dots,{total:5,current:step}),
       ...body()
@@ -417,14 +382,33 @@ function AddInvWizard({onClose,onSave,now}){
 
 function NWModal({onClose,onSave}){
   const [val,setVal]=useState("");
-  return div({style:{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:50,display:"flex",alignItems:"flex-end",justifyContent:"center"},
-    onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
-    div({style:{background:"#fff",borderRadius:"20px 20px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:"430px",border:"1px solid #e8e3dc"}},
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
       e(ModalHdr,{title:"Startovní hodnota",onClose}),
-      div({style:{fontSize:"13px",color:"#888",marginBottom:14,lineHeight:1.6}},"Zadej svůj aktuální majetek jako výchozí bod."),
+      div({style:{fontSize:"13px",color:"#888",marginBottom:10,lineHeight:1.6}},"Zadej svůj aktuální majetek jako výchozí bod."),
       e("label",{className:"lbl"},"Počáteční hodnota (Kč)"),
       inp({className:"inp",type:"text",inputMode:"decimal",placeholder:"0",value:val,onChange:ev=>setVal(ev.target.value)}),
       btn({className:"btn-next",style:{background:"#4a90d9"},onClick:()=>onSave(parseAmt(val))},"Uložit")
+    )
+  );
+}
+
+// Picker ikon pro záhlaví
+function IconPickerModal({current,onSelect,onClose}){
+  const icons=["wallet","chart","money","bank","gem"];
+  const labels={wallet:"Peněženka",chart:"Graf",money:"Peníze",bank:"Banka",gem:"Diamant"};
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
+      e(ModalHdr,{title:"Vyber ikonu",onClose}),
+      div({className:"icon-pick"},
+        ...icons.map(id=>btn({key:id,className:"icon-opt"+(current===id?" sel":""),
+          onClick:()=>{onSelect(id);onClose();}},
+          id==="wallet"?e(WalletSVG,{size:28,color:current===id?"#4a90d9":"#888"}):span({style:{fontSize:"28px"}},APP_ICONS.find(i=>i.id===id)?.emoji||"")
+        ))
+      ),
+      div({style:{display:"flex",gap:10,flexWrap:"wrap",marginTop:4}},
+        ...icons.map(id=>div({key:id,style:{flex:1,textAlign:"center",fontSize:"11px",color:"#888"}},labels[id]))
+      )
     )
   );
 }
@@ -436,7 +420,7 @@ function FixedSection({type,title,color,rows,onAdd,onCommit,onRemove,sum}){
       ...rows.map(row=>div({key:row.id,style:{display:"flex",alignItems:"center",gap:6,marginBottom:8}},
         e(StableInput,{initialValue:row.label,onCommit:v=>onCommit(type,row.id,"label",v),placeholder:"Název...",isAmount:false}),
         e(StableInput,{initialValue:row.amount,onCommit:v=>onCommit(type,row.id,"amount",v),placeholder:"0",isAmount:true}),
-        btn({onClick:()=>onRemove(type,row.id),style:{background:"none",border:"none",cursor:"pointer",fontSize:"16px",color:"#ccc",flexShrink:0,padding:"0 2px"}},"🗑")
+        btn({onClick:()=>onRemove(type,row.id),style:{background:"none",border:"none",cursor:"pointer",fontSize:"16px",color:"#ccc",flexShrink:0}},"🗑")
       )),
       btn({onClick:()=>onAdd(type),style:{width:"100%",border:"1.5px dashed #e0dbd3",borderRadius:"10px",padding:"9px",fontSize:"13px",cursor:"pointer",background:"none",color:"#bbb",marginTop:2}},"+ Přidat řádek"),
       div({style:{marginTop:10,paddingTop:10,borderTop:"1px solid #f0ede8",display:"flex",justifyContent:"space-between",alignItems:"center"}},
@@ -454,7 +438,7 @@ function HouseSection({rows,onAdd,onCommit,onRemove,sum}){
       ...rows.map(row=>div({key:row.id,style:{display:"flex",alignItems:"center",gap:6,marginBottom:8}},
         e(StableInput,{initialValue:row.label,onCommit:v=>onCommit(row.id,"label",v),placeholder:"Název položky...",isAmount:false}),
         e(StableInput,{initialValue:row.amount,onCommit:v=>onCommit(row.id,"amount",v),placeholder:"0",isAmount:true}),
-        btn({onClick:()=>onRemove(row.id),style:{background:"none",border:"none",cursor:"pointer",fontSize:"16px",color:"#ccc",flexShrink:0,padding:"0 2px"}},"🗑")
+        btn({onClick:()=>onRemove(row.id),style:{background:"none",border:"none",cursor:"pointer",fontSize:"16px",color:"#ccc",flexShrink:0}},"🗑")
       )),
       btn({onClick:onAdd,style:{width:"100%",border:"1.5px dashed #e0dbd3",borderRadius:"10px",padding:"9px",fontSize:"13px",cursor:"pointer",background:"none",color:"#bbb",marginTop:2}},"+ Přidat položku"),
       div({style:{marginTop:10,paddingTop:10,borderTop:"1px solid #f0ede8",display:"flex",justifyContent:"space-between",alignItems:"center"}},
@@ -474,6 +458,7 @@ function App(){
   const [cfNotes,setCfNotes]=useState({});
   const [fixed,setFixed]=useState({necessary:[],investment:[],unnecessary:[]});
   const [house,setHouse]=useState([]);
+  const [appIcon,setAppIcon]=useState("wallet");
   const [tab,setTab]=useState("transactions");
   const [month,setMonth]=useState(now.getMonth());
   const [year,setYear]=useState(now.getFullYear());
@@ -481,6 +466,7 @@ function App(){
   const [showAdd,setShowAdd]=useState(false);
   const [showInvAdd,setShowInvAdd]=useState(false);
   const [showNW,setShowNW]=useState(false);
+  const [showIconPick,setShowIconPick]=useState(false);
   const [editId,setEditId]=useState(null);
   const [selPie,setSelPie]=useState(null);
   const scrollRef=useRef(null);
@@ -496,9 +482,10 @@ function App(){
       if(!f.investment)f.investment=[];
       setFixed(f);
       setHouse(d.house||[]);
+      if(d.appIcon)setAppIcon(d.appIcon);
     }
   },[]);
-  useEffect(()=>{saveData({transactions:txs,investments:invs,netWorthStart:nwStart,cashflowNotes:cfNotes,fixedExpenses:fixed,house});},[txs,invs,nwStart,cfNotes,fixed,house]);
+  useEffect(()=>{saveData({transactions:txs,investments:invs,netWorthStart:nwStart,cashflowNotes:cfNotes,fixedExpenses:fixed,house,appIcon});},[txs,invs,nwStart,cfNotes,fixed,house,appIcon]);
 
   function scrollTop(){if(scrollRef.current)scrollRef.current.scrollTop=0;}
 
@@ -537,9 +524,10 @@ function App(){
   const visTxs=fil.filter(t=>txFilter==="all"||t.type===txFilter).sort((a,b)=>new Date(b.date)-new Date(a.date));
   const byDay=visTxs.reduce((a,t)=>{if(!a[t.date])a[t.date]=[];a[t.date].push(t);return a;},{});
   const days=Object.keys(byDay).sort((a,b)=>new Date(b)-new Date(a));
-  const BD="#e8e3dc";
-  const TS="#888";
-  const TH="#ccc";
+  const BD="#e8e3dc",TS="#888",TH="#ccc";
+
+  // Zkrácené popisky měn
+  const CUR_LABEL={CZK:"Kč",EUR:"€",USD:"$"};
 
   function renderTransactions(){
     return [
@@ -563,10 +551,7 @@ function App(){
               ...byDay[day].map((tx,ti)=>{
                 const cat=getCat(tx.category);
                 return div({key:tx.id,className:"txi",style:{borderBottom:ti<byDay[day].length-1?`1px solid ${BD}`:"none"}},
-                  // Ikonka s výraznou dlaždicí
-                  div({className:"tic",style:{background:cat.color+"22",border:`1.5px solid ${cat.color}44`}},
-                    span({style:{fontSize:"22px"}},cat.icon)
-                  ),
+                  div({className:"tic",style:{background:cat.color+"22",border:`1.5px solid ${cat.color}44`}},span({style:{fontSize:"22px"}},cat.icon)),
                   div({style:{flex:1,minWidth:0}},
                     div({style:{fontSize:"14px",fontWeight:600,color:"#1a1a1a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},tx.note||cat.label),
                     div({style:{fontSize:"11px",color:TS}},cat.label)
@@ -587,12 +572,10 @@ function App(){
 
   function renderDashboard(){
     return [
-      div({key:"nw",className:"card",style:{background:nw>=0?"linear-gradient(135deg,#1e3a6e,#4a90d9)":"linear-gradient(135deg,#6e1e1e,#d94a4a)",border:"none",cursor:"pointer"},
-        onClick:()=>setShowNW(true)},
+      div({key:"nw",className:"card",style:{background:nw>=0?"linear-gradient(135deg,#1e3a6e,#4a90d9)":"linear-gradient(135deg,#6e1e1e,#d94a4a)",border:"none",cursor:"pointer"},onClick:()=>setShowNW(true)},
         div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
           div(null,
-            div({style:{fontSize:"11px",color:"rgba(255,255,255,0.7)",fontWeight:500,marginBottom:4,display:"flex",alignItems:"center",gap:6}},
-              e(WalletSVG,{size:13,color:"rgba(255,255,255,0.7)"}), "Čistý majetek"),
+            div({style:{fontSize:"11px",color:"rgba(255,255,255,0.7)",fontWeight:500,marginBottom:4}},"Čistý majetek"),
             div({style:{fontSize:"28px",fontWeight:800,color:"#fff"}},fmtCZK(nw)),
             div({style:{fontSize:"10px",color:"rgba(255,255,255,0.5)",marginTop:3}},`Startovní: ${fmtCZK(nwStart)} · Klepni pro úpravu`)
           ),
@@ -615,8 +598,7 @@ function App(){
               div({style:{flex:1,overflowY:"auto",maxHeight:170}},
                 ...pieData.map((d,i)=>{
                   const tot=pieData.reduce((s,x)=>s+x.value,0);
-                  const isSel=selPie===d.id;
-                  const isDim=selPie&&!isSel;
+                  const isSel=selPie===d.id,isDim=selPie&&!isSel;
                   return div({key:i,className:"legend-item",
                     style:{opacity:isDim?0.3:1,background:isSel?d.color+"15":"transparent",border:isSel?`1px solid ${d.color}50`:"1px solid transparent"},
                     onClick:()=>setSelPie(isSel?null:d.id)},
@@ -663,12 +645,16 @@ function App(){
 
   function renderInvest(){
     return [
+      // Tabulka investic — zkrácené popisky měn (Kč, €, $)
       div({key:"total",className:"card",style:{background:"linear-gradient(135deg,#2d1f5e,#6366F1)",border:"none"}},
         div({style:{fontSize:"12px",color:"rgba(255,255,255,0.6)",marginBottom:10}},"📈 Celkem zainvestováno"),
         div({style:{display:"flex",gap:0}},
-          ...INV_CURR.map((c,i)=>div({key:c,style:{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,0.15)":"none",padding:"0 4px"}},
-            div({style:{fontSize:"10px",color:"rgba(255,255,255,0.5)",marginBottom:3}},c),
-            div({style:{fontSize:"16px",fontWeight:800,color:"#fff"}},fmtMoney(invByCur[c],c))
+          ...INV_CURR.map((c,i)=>div({key:c,style:{flex:1,textAlign:"center",borderRight:i<2?"1px solid rgba(255,255,255,0.15)":"none",padding:"0 6px"}},
+            div({style:{fontSize:"11px",color:"rgba(255,255,255,0.55)",marginBottom:4}},CUR_LABEL[c]),
+            div({style:{fontSize:"17px",fontWeight:800,color:"#fff"}},
+              // Zobrazit jen číslo bez symbolu měny
+              new Intl.NumberFormat("cs-CZ",{maximumFractionDigits:0}).format(invByCur[c])
+            )
           ))
         ),
         div({style:{fontSize:"11px",color:"rgba(255,255,255,0.4)",marginTop:8,textAlign:"center"}},invs.length+" pozic")
@@ -708,16 +694,17 @@ function App(){
 
   return div({style:{display:"flex",flexDirection:"column",height:"100%",minHeight:0}},
     // HEADER
-    div({style:{background:"#fff",padding:"14px 16px 10px",borderBottom:"1px solid #e8e3dc",flexShrink:0}},
+    div({style:{background:"#fff",padding:"12px 16px 10px",borderBottom:"1px solid #e8e3dc",flexShrink:0}},
       div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
-        e("h1",{style:{fontSize:"20px",fontWeight:800,color:"#1a1a1a",margin:0,display:"flex",alignItems:"center",gap:8}},
-          div({style:{width:30,height:30,borderRadius:8,background:"#eef5fd",border:"1px solid #c8ddf5",display:"flex",alignItems:"center",justifyContent:"center"}},
-            e(WalletSVG,{size:17,color:"#4a90d9"})
+        // Ikonka (kliknutím otevře picker) + název
+        div({style:{display:"flex",alignItems:"center",gap:10}},
+          btn({onClick:()=>setShowIconPick(true),style:{background:"#eef5fd",border:"1.5px solid #c8ddf5",borderRadius:12,width:44,height:44,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0}},
+            e(AppIcon,{iconId:appIcon,size:28,color:"#4a90d9"})
           ),
-          "Finance"
+          e("h1",{style:{fontSize:"16px",fontWeight:800,color:"#1a1a1a",margin:0,lineHeight:1.2}},"Správa účtu",e("br",null),"a investic")
         )
       ),
-      // Měsíc — větší
+      // Měsíc
       div({style:{display:"flex",alignItems:"center",gap:8,marginTop:10}},
         btn({style:{background:"#f5f2ee",border:"1px solid #e0dbd3",cursor:"pointer",fontSize:"18px",color:"#888",padding:"3px 14px",borderRadius:8},onClick:prevMonth},"‹"),
         span({style:{fontSize:"18px",fontWeight:800,color:"#1a1a1a",minWidth:130,textAlign:"center"}},MONTHS[month]+" "+year),
@@ -725,21 +712,20 @@ function App(){
       )
     ),
     // SCROLL OBLAST
-    div({ref:scrollRef,style:{flex:1,overflowY:"auto",WebkitOverflowScrolling:"touch",paddingBottom:8}},
+    div({ref:scrollRef,className:"scroll-area"},
       ...(tab==="transactions"?renderTransactions():tab==="dashboard"?renderDashboard():tab==="fixed"?renderFixed():tab==="invest"?renderInvest():renderHouse())
     ),
-    // NAV — vždy dole, nikdy nescrolluje
+    // NAV
     e("nav",{className:"nav"},
       ...NAV.map(n=>btn({key:n.id,className:`nb${tab===n.id?" active":""}`,onClick:()=>setTab(n.id)},
         span({style:{fontSize:"20px"}},n.icon),n.label
       ))
     ),
-    // FAB
     showFab&&btn({className:"fab",onClick:()=>tab==="invest"?setShowInvAdd(true):setShowAdd(true)},"+"),
-    // MODALY
     showAdd&&e(AddTxWizard,{now,editTx:editId?txs.find(t=>t.id===editId):null,onClose:()=>{setShowAdd(false);setEditId(null);},onSave:saveTx}),
     showInvAdd&&e(AddInvWizard,{now,onClose:()=>setShowInvAdd(false),onSave:saveInv}),
-    showNW&&e(NWModal,{onClose:()=>setShowNW(false),onSave:v=>{setNwStart(v);setShowNW(false);}})
+    showNW&&e(NWModal,{onClose:()=>setShowNW(false),onSave:v=>{setNwStart(v);setShowNW(false);}}),
+    showIconPick&&e(IconPickerModal,{current:appIcon,onSelect:setAppIcon,onClose:()=>setShowIconPick(false)})
   );
 }
 
