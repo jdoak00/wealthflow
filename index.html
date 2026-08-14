@@ -122,6 +122,27 @@ function fmtDate(s){const d=new Date(s+"T00:00:00");return `${d.getDate()}. ${MO
 function loadData(){try{const r=localStorage.getItem(STORAGE);if(r)return JSON.parse(r);}catch{}return null;}
 function saveData(d){try{localStorage.setItem(STORAGE,JSON.stringify(d));}catch{}}
 
+function exportData(){
+  try{
+    const d=localStorage.getItem(STORAGE)||"{}";
+    const blob=new Blob([d],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download="finance-zaloha.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(ex){alert("Export selhal: "+ex);}
+}
+
+function importData(jsonStr){
+  try{
+    const d=JSON.parse(jsonStr);
+    localStorage.setItem(STORAGE,JSON.stringify(d));
+    return true;
+  }catch(ex){alert("Import selhal — soubor není platný.");return false;}
+}
+
 const div=(p,...c)=>e("div",p,...c);
 const span=(p,...c)=>e("span",p,...c);
 const btn=(p,...c)=>e("button",p,...c);
@@ -498,6 +519,94 @@ function HouseSection({rows,onAdd,onCommit,onRemove,sum}){
   );
 }
 
+// ── ImportExport Modal ────────────────────────────────────────────────────────
+function ImportExportModal({onClose,onImportDone}){
+  const fileRef=useRef(null);
+  const [copied,setCopied]=useState(false);
+  const [importOk,setImportOk]=useState(false);
+
+  function handleExport(){
+    try{
+      const d=localStorage.getItem(STORAGE)||"{}";
+      const blob=new Blob([d],{type:"application/json"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;
+      a.download="finance-zaloha.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }catch(ex){
+      // Fallback — zkopíruj do schránky
+      const d=localStorage.getItem(STORAGE)||"{}";
+      navigator.clipboard&&navigator.clipboard.writeText(d).then(()=>{
+        setCopied(true);
+        setTimeout(()=>setCopied(false),2500);
+      });
+    }
+  }
+
+  function handleFileImport(ev){
+    const file=ev.target.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=re=>{
+      try{
+        const d=JSON.parse(re.target.result);
+        localStorage.setItem(STORAGE,JSON.stringify(d));
+        setImportOk(true);
+        setTimeout(()=>{onImportDone();onClose();},1200);
+      }catch(ex){alert("Soubor není platný.");}
+    };
+    reader.readAsText(file);
+  }
+
+  const BD="#e8e3dc",TS="#888";
+  return div({className:"modal-bg",onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
+    div({className:"modal-box"},
+      div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}},
+        e("h2",{style:{margin:0,fontSize:"18px",fontWeight:800,color:"#1a1a1a"}},"Záloha dat"),
+        btn({onClick:onClose,style:{background:"#f5f2ee",border:"none",borderRadius:"50%",width:32,height:32,fontSize:"20px",cursor:"pointer",color:"#888",display:"flex",alignItems:"center",justifyContent:"center"}},"×")
+      ),
+
+      // EXPORT
+      div({style:{background:"#f8fff8",border:"1px solid #c6e8c6",borderRadius:12,padding:"16px",marginBottom:12}},
+        div({style:{fontSize:"14px",fontWeight:700,color:"#1a6e1a",marginBottom:6}},"📤 Export — záloha dat"),
+        div({style:{fontSize:"13px",color:"#555",lineHeight:1.6,marginBottom:12}},"Stáhni zálohu svých dat jako soubor. Pak ho importuj v nové instalaci aplikace."),
+        btn({onClick:handleExport,style:{width:"100%",background:"#22C55E",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:"15px",fontWeight:700,cursor:"pointer"}},
+          copied?"✅ Zkopírováno do schránky":"📥 Stáhnout zálohu (JSON)"
+        )
+      ),
+
+      // IMPORT
+      div({style:{background:"#f8f8ff",border:"1px solid #c6c6e8",borderRadius:12,padding:"16px"}}),
+      div({style:{background:"#f8f8ff",border:"1px solid #c6c6e8",borderRadius:12,padding:"16px"}},
+        div({style:{fontSize:"14px",fontWeight:700,color:"#1a1a6e",marginBottom:6}},"📂 Import — obnovení dat"),
+        div({style:{fontSize:"13px",color:"#555",lineHeight:1.6,marginBottom:12}},"Vyber soubor zálohy (finance-zaloha.json) který jsi předtím exportoval. Data se načtou okamžitě."),
+        importOk
+          ?div({style:{textAlign:"center",fontSize:"15px",fontWeight:700,color:"#22C55E",padding:"12px"}},"✅ Data úspěšně importována!")
+          :btn({onClick:()=>fileRef.current&&fileRef.current.click(),style:{width:"100%",background:"#4a90d9",color:"#fff",border:"none",borderRadius:10,padding:"12px",fontSize:"15px",fontWeight:700,cursor:"pointer"}},"📂 Vybrat soubor zálohy"),
+        e("input",{ref:fileRef,type:"file",accept:".json",style:{display:"none"},onChange:handleFileImport})
+      ),
+
+      // Návod
+      div({style:{marginTop:14,padding:"12px",background:"#fafaf8",borderRadius:10,border:"1px solid #e8e3dc"}}),
+      div({style:{marginTop:14,padding:"12px",background:"#fafaf8",borderRadius:10,border:"1px solid #e8e3dc"}},
+        div({style:{fontSize:"12px",fontWeight:700,color:"#888",marginBottom:6}},"💡 POSTUP PŘI PŘESUNU DAT"),
+        div({style:{fontSize:"12px",color:"#888",lineHeight:1.8}},
+          "1. Otevři app v Safari prohlížeči",e("br",null),
+          "2. Jdi do Nastavení → Export",e("br",null),
+          "3. Stáhni soubor zálohy",e("br",null),
+          "4. Otevři app z plochy (ikona)",e("br",null),
+          "5. Jdi do Nastavení → Import",e("br",null),
+          "6. Vyber stažený soubor → hotovo ✅"
+        )
+      )
+    )
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 function App(){
   const now=new Date();
@@ -516,6 +625,7 @@ function App(){
   const [showInvAdd,setShowInvAdd]=useState(false);
   const [showNW,setShowNW]=useState(false);
   const [showIconPick,setShowIconPick]=useState(false);
+  const [showImportExport,setShowImportExport]=useState(false);
   const [editId,setEditId]=useState(null);
   const [selPie,setSelPie]=useState(null);
   const scrollRef=useRef(null);
@@ -537,6 +647,21 @@ function App(){
   useEffect(()=>{saveData({transactions:txs,investments:invs,netWorthStart:nwStart,cashflowNotes:cfNotes,fixedExpenses:fixed,house,appIcon});},[txs,invs,nwStart,cfNotes,fixed,house,appIcon]);
 
   function scrollTop(){if(scrollRef.current)scrollRef.current.scrollTop=0;}
+
+  function reloadFromStorage(){
+    const d=loadData();
+    if(d){
+      setTxs(d.transactions||[]);
+      setInvs(d.investments||[]);
+      setNwStart(d.netWorthStart||0);
+      setCfNotes(d.cashflowNotes||{});
+      const f=d.fixedExpenses||{necessary:[],investment:[],unnecessary:[]};
+      if(!f.investment)f.investment=[];
+      setFixed(f);
+      setHouse(d.house||[]);
+      if(d.appIcon)setAppIcon(d.appIcon);
+    }
+  }
 
   const fil=txs.filter(t=>{const d=new Date(t.date);return d.getMonth()===month&&d.getFullYear()===year;});
   const totInc=fil.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
@@ -732,6 +857,28 @@ function App(){
     ];
   }
 
+  function renderSettings(){
+    return [
+      div({key:"s1",className:"sec"},"Záloha a obnova dat"),
+      div({key:"s2",className:"card"},
+        div({style:{fontSize:"14px",color:"#555",lineHeight:1.7,marginBottom:12}},
+          "Pokud sis přidal aplikaci na plochu, data se ukládají odděleně od Safari prohlížeče. Pomocí exportu/importu je přeneseš."
+        ),
+        btn({onClick:()=>setShowImportExport(true),style:{width:"100%",background:"#4a90d9",color:"#fff",border:"none",borderRadius:12,padding:"13px",fontSize:"16px",fontWeight:700,cursor:"pointer"}},"📦 Exportovat / Importovat data")
+      ),
+      div({key:"s3",className:"sec"},"Ikona aplikace"),
+      div({key:"s4",className:"card"},
+        div({style:{fontSize:"14px",color:"#555",lineHeight:1.7,marginBottom:12}},"Změň ikonu zobrazenou v záhlaví aplikace."),
+        btn({onClick:()=>setShowIconPick(true),style:{width:"100%",background:"#f5f2ee",color:"#555",border:"1.5px solid #e0dbd3",borderRadius:12,padding:"13px",fontSize:"15px",fontWeight:600,cursor:"pointer"}},"🎨 Změnit ikonu záhlaví")
+      ),
+      div({key:"s5",className:"sec"},"Startovní hodnota majetku"),
+      div({key:"s6",className:"card"},
+        div({style:{fontSize:"14px",color:"#555",lineHeight:1.7,marginBottom:12}},"Nastav počáteční hodnotu svého majetku jako výchozí bod pro výpočet čistého majetku."),
+        btn({onClick:()=>setShowNW(true),style:{width:"100%",background:"#f5f2ee",color:"#555",border:"1.5px solid #e0dbd3",borderRadius:12,padding:"13px",fontSize:"15px",fontWeight:600,cursor:"pointer"}},"💼 Nastavit startovní hodnotu")
+      ),
+    ];
+  }
+
   function renderHouse(){
     return [e(HouseSection,{key:"house",rows:house,onAdd:addHouseRow,onCommit:commitHouse,onRemove:removeHouse,sum:sumHouse})];
   }
@@ -742,6 +889,7 @@ function App(){
     {id:"fixed",icon:"🔁",label:"Výdaje"},
     {id:"invest",icon:"📈",label:"Investice"},
     {id:"house",icon:"🇭🇷",label:"Domek"},
+    {id:"settings",icon:"⚙️",label:"Nastavení"},
   ];
 
   return div({style:{display:"flex",flexDirection:"column",height:"100%",minHeight:0}},
@@ -761,7 +909,7 @@ function App(){
       )
     ),
     div({ref:scrollRef,className:"scroll-area"},
-      ...(tab==="transactions"?renderTransactions():tab==="dashboard"?renderDashboard():tab==="fixed"?renderFixed():tab==="invest"?renderInvest():renderHouse())
+      ...(tab==="transactions"?renderTransactions():tab==="dashboard"?renderDashboard():tab==="fixed"?renderFixed():tab==="invest"?renderInvest():tab==="house"?renderHouse():renderSettings())
     ),
     e("nav",{className:"nav"},
       ...NAV.map(n=>btn({key:n.id,className:`nb${tab===n.id?" active":""}`,onClick:()=>setTab(n.id)},
@@ -772,7 +920,8 @@ function App(){
     showAdd&&e(AddTxWizard,{now,editTx:editId?txs.find(t=>t.id===editId):null,onClose:()=>{setShowAdd(false);setEditId(null);},onSave:saveTx}),
     showInvAdd&&e(AddInvWizard,{now,onClose:()=>setShowInvAdd(false),onSave:saveInv}),
     showNW&&e(NWModal,{onClose:()=>setShowNW(false),onSave:v=>{setNwStart(v);setShowNW(false);}}),
-    showIconPick&&e(IconPickerModal,{current:appIcon,onSelect:setAppIcon,onClose:()=>setShowIconPick(false)})
+    showIconPick&&e(IconPickerModal,{current:appIcon,onSelect:setAppIcon,onClose:()=>setShowIconPick(false)}),
+    showImportExport&&e(ImportExportModal,{onClose:()=>setShowImportExport(false),onImportDone:reloadFromStorage})
   );
 }
 
