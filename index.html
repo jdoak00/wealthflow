@@ -501,19 +501,38 @@ function FixedSection({type,title,color,rows,onAdd,onCommit,onRemove,sum}){
   );
 }
 
-function HouseSection({rows,onAdd,onCommit,onRemove,sum}){
+function HouseSection({rows,onAdd,onCommit,onRemove,sumCZK,sumEUR}){
   return e(React.Fragment,null,
     div({className:"sec"},"🇭🇷 Chorvatsko — přehled výdajů"),
     div({className:"card"},
+      // Hlavička sloupců
+      div({style:{display:"flex",gap:6,marginBottom:6,paddingBottom:6,borderBottom:"1px solid #f0ede8"}},
+        div({style:{flex:"1 1 0",minWidth:0,fontSize:"11px",color:"#aaa",fontWeight:600}}),"",
+        div({style:{width:"74px",flexShrink:0,fontSize:"11px",color:"#aaa",fontWeight:600,textAlign:"right"}},"EUR"),
+        div({style:{width:"74px",flexShrink:0,fontSize:"11px",color:"#aaa",fontWeight:600,textAlign:"right"}},"Kč"),
+        div({style:{width:"24px",flexShrink:0}})
+      ),
       ...rows.map(row=>div({key:row.id,style:{display:"flex",alignItems:"center",gap:6,marginBottom:8}},
-        e(StableInput,{initialValue:row.label,onCommit:v=>onCommit(row.id,"label",v),placeholder:"Název položky...",isAmount:false}),
-        e(StableInput,{initialValue:row.amount,onCommit:v=>onCommit(row.id,"amount",v),placeholder:"0",isAmount:true}),
+        e(StableInput,{initialValue:row.label,onCommit:v=>onCommit(row.id,"label",v),placeholder:"Název...",isAmount:false}),
+        e(StableInput,{initialValue:row.amountEUR,onCommit:v=>onCommit(row.id,"amountEUR",v),placeholder:"0",isAmount:true}),
+        e(StableInput,{initialValue:row.amountCZK,onCommit:v=>onCommit(row.id,"amountCZK",v),placeholder:"0",isAmount:true}),
         btn({onClick:()=>onRemove(row.id),style:{background:"none",border:"none",cursor:"pointer",fontSize:"16px",color:"#ccc",flexShrink:0}},"🗑")
       )),
       btn({onClick:onAdd,style:{width:"100%",border:"1.5px dashed #e0dbd3",borderRadius:"10px",padding:"9px",fontSize:"13px",cursor:"pointer",background:"none",color:"#bbb",marginTop:2}},"+ Přidat položku"),
-      div({style:{marginTop:10,paddingTop:10,borderTop:"1px solid #f0ede8",display:"flex",justifyContent:"space-between",alignItems:"center"}},
-        span({style:{fontSize:"13px",fontWeight:700,color:"#555"}},"Celkem"),
-        span({style:{fontSize:"16px",fontWeight:800,color:"#F97316"}},fmtCZK(sum))
+      // Součty
+      div({style:{marginTop:10,paddingTop:10,borderTop:"2px solid #f0ede8"}}),
+      div({style:{display:"flex",gap:6,alignItems:"center"}}),
+      div({style:{marginTop:10,paddingTop:10,borderTop:"2px solid #f0ede8",display:"flex",flexDirection:"column",gap:6}},
+        div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          span({style:{fontSize:"13px",fontWeight:700,color:"#555"}},"Celkem EUR"),
+          span({style:{fontSize:"16px",fontWeight:800,color:"#0EA5E9"}},
+            new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(sumEUR)
+          )
+        ),
+        div({style:{display:"flex",justifyContent:"space-between",alignItems:"center"}},
+          span({style:{fontSize:"13px",fontWeight:700,color:"#555"}},"Celkem Kč"),
+          span({style:{fontSize:"16px",fontWeight:800,color:"#F97316"}},fmtCZK(sumCZK))
+        )
       )
     )
   );
@@ -640,7 +659,13 @@ function App(){
       const f=d.fixedExpenses||{necessary:[],investment:[],unnecessary:[]};
       if(!f.investment)f.investment=[];
       setFixed(f);
-      setHouse(d.house||[]);
+      // Migrace starých dat — přejmenuj amount → amountCZK
+      const rawHouse=(d.house||[]).map(r=>({
+        ...r,
+        amountCZK: r.amountCZK!==undefined ? r.amountCZK : (r.amount||""),
+        amountEUR: r.amountEUR||"",
+      }));
+      setHouse(rawHouse);
       if(d.appIcon)setAppIcon(d.appIcon);
     }
   },[]);
@@ -658,7 +683,13 @@ function App(){
       const f=d.fixedExpenses||{necessary:[],investment:[],unnecessary:[]};
       if(!f.investment)f.investment=[];
       setFixed(f);
-      setHouse(d.house||[]);
+      // Migrace starých dat — přejmenuj amount → amountCZK
+      const rawHouse=(d.house||[]).map(r=>({
+        ...r,
+        amountCZK: r.amountCZK!==undefined ? r.amountCZK : (r.amount||""),
+        amountEUR: r.amountEUR||"",
+      }));
+      setHouse(rawHouse);
       if(d.appIcon)setAppIcon(d.appIcon);
     }
   }
@@ -678,7 +709,8 @@ function App(){
   const sumNec=fixed.necessary.reduce((s,r)=>s+parseAmt(r.amount),0);
   const sumInvF=fixed.investment.reduce((s,r)=>s+parseAmt(r.amount),0);
   const sumUnnec=fixed.unnecessary.reduce((s,r)=>s+parseAmt(r.amount),0);
-  const sumHouse=house.reduce((s,r)=>s+parseAmt(r.amount),0);
+  const sumHouseCZK=house.reduce((s,r)=>s+parseAmt(r.amountCZK),0);
+  const sumHouseEUR=house.reduce((s,r)=>s+parseAmt(r.amountEUR),0);
 
   function saveTx(data){
     if(editId){setTxs(p=>p.map(t=>t.id===editId?{...t,...data}:t));setEditId(null);}
@@ -691,7 +723,7 @@ function App(){
   function addFixedRow(t){setFixed(p=>({...p,[t]:[...p[t],{id:Date.now().toString(),label:"",amount:""}]}));}
   function commitFixed(t,id,f,v){setFixed(p=>({...p,[t]:p[t].map(r=>r.id===id?{...r,[f]:v}:r)}));}
   function removeFixed(t,id){setFixed(p=>({...p,[t]:p[t].filter(r=>r.id!==id)}));}
-  function addHouseRow(){setHouse(p=>[...p,{id:Date.now().toString(),label:"",amount:""}]);}
+  function addHouseRow(){setHouse(p=>[...p,{id:Date.now().toString(),label:"",amountEUR:"",amountCZK:""}]);}
   function commitHouse(id,f,v){setHouse(p=>p.map(r=>r.id===id?{...r,[f]:v}:r));}
   function removeHouse(id){setHouse(p=>p.filter(r=>r.id!==id));}
 
@@ -870,7 +902,7 @@ function App(){
   }
 
   function renderHouse(){
-    return [e(HouseSection,{key:"house",rows:house,onAdd:addHouseRow,onCommit:commitHouse,onRemove:removeHouse,sum:sumHouse})];
+    return [e(HouseSection,{key:"house",rows:house,onAdd:addHouseRow,onCommit:commitHouse,onRemove:removeHouse,sumCZK:sumHouseCZK,sumEUR:sumHouseEUR})];
   }
 
   const NAV=[
