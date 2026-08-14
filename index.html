@@ -19,8 +19,20 @@
     input,textarea{-webkit-user-select:text;user-select:text;font-family:'DM Sans',sans-serif;}
     input[type="date"]::-webkit-calendar-picker-indicator{opacity:0.5;}
     .card{background:#fff;border-radius:14px;padding:16px;margin:10px 12px 0;border:1px solid #e8e3dc;}
-    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;display:flex;align-items:flex-end;justify-content:center;}
-    .modal-box{background:#fff;border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:430px;max-height:88vh;overflow-y:auto;border-top:1px solid #e8e3dc;}
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:50;display:flex;align-items:flex-end;justify-content:center;padding:0;}
+    .modal-box{
+      background:#fff;
+      border-radius:20px 20px 0 0;
+      padding:24px 20px 32px;
+      width:100%;
+      max-width:430px;
+      /* Výška: vejde se do rámečku — nav je ~60px, header ~90px */
+      max-height:calc(100vh - 180px);
+      overflow-y:auto;
+      border-top:1px solid #e8e3dc;
+      border-left:1px solid #e8e3dc;
+      border-right:1px solid #e8e3dc;
+    }
     .inp{width:100%;border:1.5px solid #e0dbd3;border-radius:10px;padding:11px 14px;font-size:15px;outline:none;background:#fafaf8;color:#1a1a1a;margin-top:4px;font-family:'DM Sans',sans-serif;}
     .inp:focus{border-color:#4a90d9;background:#fff;}
     .btn-next{width:100%;border:none;border-radius:12px;padding:13px;font-size:16px;font-weight:700;cursor:pointer;margin-top:14px;color:#fff;}
@@ -166,40 +178,41 @@ function renderIcon(id,size=28,color="#4a90d9"){
 }
 
 // ── Klávesnice fix ─────────────────────────────────────────────────────────
-// Jediný spolehlivý způsob na iOS: input musí být v DOM před focus(),
-// nesmí být hidden, nesmí mít display:none.
-// Používáme readOnly trik + programmatic focus v useEffect.
-function AutoFocusInput({mode,placeholder,value,onChange,extraStyle}){
+// iOS Safari: focus() funguje POUZE pokud je voláno synchronně uvnitř
+// user-gesture (touch/click). Triky s setTimeout nefungují spolehlivě.
+// Řešení: input s autoFocus=true + onTouchStart který zavolá focus()
+// přímo v handleru doteku — to iOS považuje za user gesture.
+function AutoFocusInput({mode,placeholder,value,onChange}){
   const ref=useRef(null);
-  const mounted=useRef(false);
 
+  // autoFocus pro Android/desktop
   useEffect(()=>{
-    if(mounted.current) return;
-    mounted.current=true;
     const el=ref.current;
     if(!el) return;
-    // iOS focus trick: krátký delay po renderu
-    const t1=setTimeout(()=>{
-      if(!el) return;
-      el.removeAttribute("readonly");
-      el.focus({preventScroll:false});
-    },80);
-    return ()=>clearTimeout(t1);
+    // Pokus o focus — funguje na Androidu a desktopu okamžitě
+    try{ el.focus(); }catch(ex){}
   },[]);
+
+  function handleTouch(ev){
+    // iOS: voláme focus() přímo v touch handleru = user gesture
+    const el=ref.current;
+    if(el) el.focus();
+  }
 
   return inp({
     ref,
     className:"inp",
     type:"text",
-    inputMode:mode,              // "decimal" nebo "text"
+    inputMode:mode,
     enterKeyHint:"done",
+    autoFocus:true,
     autoComplete:"off",
     autoCorrect:mode==="text"?"on":"off",
     autoCapitalize:mode==="text"?"sentences":"none",
     spellCheck:mode==="text",
     placeholder,
     value,
-    style:extraStyle||{},
+    onTouchStart:handleTouch,
     onChange:ev=>onChange(ev.target.value),
   });
 }
