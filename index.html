@@ -545,25 +545,33 @@ function HouseSection({rows,onAdd,onCommit,onRemove,sumCZK,sumEUR}){
         )
       )),
       btn({onClick:onAdd,style:{width:"100%",border:"1.5px dashed #e0dbd3",borderRadius:"10px",padding:"9px",fontSize:"13px",cursor:"pointer",background:"none",color:"#bbb",marginTop:4}},"+ Přidat položku"),
-      // Součty — čísla i měny zarovnané pod sebou
+      // Součty — čísla i měny zarovnané pod sebou pomocí tabulky
       div({style:{marginTop:12,paddingTop:12,borderTop:"2px solid #f0ede8"}},
-        // Hlavička
-        div({style:{display:"flex",marginBottom:6}},
-          div({style:{flex:1}}),
-          div({style:{width:90,textAlign:"right",fontSize:"11px",fontWeight:700,color:"#aaa",paddingRight:4}},"Částka"),
-          div({style:{width:34,textAlign:"right",fontSize:"11px",fontWeight:700,color:"#aaa"}})
-        ),
-        // EUR součet
-        div({style:{display:"flex",alignItems:"baseline",marginBottom:4}},
-          span({style:{flex:1,fontSize:"13px",fontWeight:700,color:"#555"}},"Celkem"),
-          span({style:{width:90,textAlign:"right",fontSize:"17px",fontWeight:800,color:"#0EA5E9",fontVariantNumeric:"tabular-nums"}},fmtEUR(sumEUR)),
-          span({style:{width:34,textAlign:"right",fontSize:"13px",fontWeight:700,color:"#0EA5E9",paddingLeft:4}},"€")
-        ),
-        // Kč součet
-        div({style:{display:"flex",alignItems:"baseline"}},
-          span({style:{flex:1,fontSize:"13px",fontWeight:700,color:"#555"}},"Celkem"),
-          span({style:{width:90,textAlign:"right",fontSize:"17px",fontWeight:800,color:"#F97316",fontVariantNumeric:"tabular-nums"}},fmtKC(sumCZK)),
-          span({style:{width:34,textAlign:"right",fontSize:"13px",fontWeight:700,color:"#F97316",paddingLeft:4}}),"Kč"
+        e("table",{style:{width:"100%",borderCollapse:"collapse"}},
+          e("colgroup",null,
+            e("col",{style:{width:"auto"}}),   // "Celkem" — roztáhne se
+            e("col",{style:{width:"110px"}}),  // číslo — pevná šířka
+            e("col",{style:{width:"32px"}})    // symbol měny — pevná šířka
+          ),
+          e("thead",null,
+            e("tr",null,
+              e("th",{style:{fontSize:"11px",fontWeight:700,color:"#aaa",textAlign:"left",paddingBottom:4}}),
+              e("th",{style:{fontSize:"11px",fontWeight:700,color:"#aaa",textAlign:"right",paddingBottom:4}},"Částka"),
+              e("th",{style:{fontSize:"11px",fontWeight:700,color:"#aaa",textAlign:"right",paddingBottom:4}})
+            )
+          ),
+          e("tbody",null,
+            e("tr",null,
+              e("td",{style:{fontSize:"13px",fontWeight:700,color:"#555",paddingTop:2,paddingBottom:2}},"Celkem"),
+              e("td",{style:{fontSize:"17px",fontWeight:800,color:"#0EA5E9",textAlign:"right",fontVariantNumeric:"tabular-nums",letterSpacing:"-0.3px",paddingTop:2,paddingBottom:2}},fmtEUR(sumEUR)),
+              e("td",{style:{fontSize:"13px",fontWeight:700,color:"#0EA5E9",textAlign:"right",paddingLeft:6,paddingTop:2,paddingBottom:2}},"€")
+            ),
+            e("tr",null,
+              e("td",{style:{fontSize:"13px",fontWeight:700,color:"#555",paddingTop:2}},"Celkem"),
+              e("td",{style:{fontSize:"17px",fontWeight:800,color:"#F97316",textAlign:"right",fontVariantNumeric:"tabular-nums",letterSpacing:"-0.3px",paddingTop:2}},fmtKC(sumCZK)),
+              e("td",{style:{fontSize:"13px",fontWeight:700,color:"#F97316",textAlign:"right",paddingLeft:6,paddingTop:2}},"Kč")
+            )
+          )
         )
       )
     )
