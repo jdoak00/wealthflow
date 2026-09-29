@@ -94,6 +94,7 @@ const EXPENSE_CATS=[
   {id:"beauty",label:"Krása",icon:"💅",color:"#F472B6"},
   {id:"health",label:"Zdraví",icon:"💊",color:"#10B981"},
   {id:"snacks",label:"Občerstvení",icon:"☕",color:"#D97706"},
+  {id:"doubek",label:"Doubek j.d.o.o.",icon:"DOUBEK",color:"#B8860B"},
 ];
 const INCOME_CATS=[
   {id:"salary",label:"Mzda",icon:"💼",color:"#22C55E"},
@@ -101,6 +102,7 @@ const INCOME_CATS=[
   {id:"inv_income",label:"Investice",icon:"📈",color:"#6366F1"},
   {id:"rent",label:"Nájem",icon:"🏡",color:"#F59E0B"},
   {id:"other_inc",label:"Jiné",icon:"💰",color:"#94A3B8"},
+  {id:"doubek",label:"Doubek j.d.o.o.",icon:"DOUBEK",color:"#B8860B"},
 ];
 const ALL_CATS=[...EXPENSE_CATS,...INCOME_CATS];
 const INV_TYPES=["Akcie","Bitcoin","ETF"];
@@ -149,6 +151,30 @@ const btn=(p,...c)=>e("button",p,...c);
 const inp=p=>e("input",p);
 
 // SVG ikony pro picker
+// Domek se srdcem — Doubek j.d.o.o.
+function DoubkSVG({size=24,color="#B8860B"}){
+  const s=size;
+  // viewBox 0 0 100 100
+  const scale=s/100;
+  return e("svg",{width:s,height:s,viewBox:"0 0 100 100",fill:"none",stroke:color,strokeWidth:5,strokeLinecap:"round",strokeLinejoin:"round"},
+    // Střecha - trojúhelník s přesahem
+    e("polyline",{points:"10,52 50,12 90,52",strokeWidth:6}),
+    // Okapy vlevo a vpravo (přesah střechy)
+    e("line",{x1:"6",y1:"52",x2:"94",y2:"52",strokeWidth:5}),
+    // Stěny domu
+    e("polyline",{points:"22,52 22,88 78,88 78,52",strokeWidth:5}),
+    // Srdce uvnitř domu
+    e("path",{
+      d:"M50,75 C50,75 32,63 32,53 C32,46 38,42 44,45 C47,46 50,50 50,50 C50,50 53,46 56,45 C62,42 68,46 68,53 C68,63 50,75 50,75 Z",
+      strokeWidth:4,fill:color,opacity:"0.25"
+    }),
+    e("path",{
+      d:"M50,75 C50,75 32,63 32,53 C32,46 38,42 44,45 C47,46 50,50 50,50 C50,50 53,46 56,45 C62,42 68,46 68,53 C68,63 50,75 50,75 Z",
+      strokeWidth:4,fill:"none"
+    })
+  );
+}
+
 function WalletSVG({size=24,color="#4a90d9"}){
   return e("svg",{width:size,height:size,viewBox:"0 0 24 24",fill:"none",stroke:color,strokeWidth:"2",strokeLinecap:"round",strokeLinejoin:"round"},
     e("path",{d:"M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-2"}),
@@ -201,6 +227,12 @@ function renderIcon(id,size=28,color="#4a90d9"){
   if(id==="bolt") return e(BoltSVG,{size,color:"#F59E0B"});
   if(id==="shield") return e(ShieldSVG,{size,color:"#8B5CF6"});
   return e(WalletSVG,{size,color});
+}
+
+// Vrátí ikonku pro kategorii — emoji nebo SVG pro Doubek
+function CatIcon({icon,size=22,color}){
+  if(icon==="DOUBEK") return e(DoubkSVG,{size:size,color:color||"#B8860B"});
+  return span({style:{fontSize:size+"px",lineHeight:1}},icon);
 }
 
 // ── Klávesnice fix ─────────────────────────────────────────────────────────
@@ -290,7 +322,7 @@ function CatGrid({cats,selected,onSelect}){
     ...cats.map(cat=>btn({key:cat.id,className:"cat-btn",
       style:{border:`2px solid ${selected===cat.id?cat.color:"#e8e3dc"}`,background:selected===cat.id?cat.color+"18":"#f5f2ee"},
       onClick:()=>onSelect(cat.id)},
-      span({style:{fontSize:"22px"}},cat.icon),
+      e(CatIcon,{icon:cat.icon,size:22,color:cat.color}),
       span({className:"cat-lbl"},cat.label)
     ))
   );
@@ -797,7 +829,7 @@ function App(){
               ...byDay[day].map((tx,ti)=>{
                 const cat=getCat(tx.category);
                 return div({key:tx.id,className:"txi",style:{borderBottom:ti<byDay[day].length-1?`1px solid ${BD}`:"none"}},
-                  div({className:"tic",style:{background:cat.color+"22",border:`1.5px solid ${cat.color}44`}},span({style:{fontSize:"22px"}},cat.icon)),
+                  div({className:"tic",style:{background:cat.color+"22",border:`1.5px solid ${cat.color}44`}},e(CatIcon,{icon:cat.icon,size:20,color:cat.color})),
                   div({style:{flex:1,minWidth:0}},
                     div({style:{fontSize:"14px",fontWeight:600,color:"#1a1a1a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},tx.note||cat.label),
                     div({style:{fontSize:"11px",color:TS}},cat.label)
