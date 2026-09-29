@@ -871,14 +871,15 @@ function App(){
       div({key:"pie",className:"card"},
         pieData.length===0
           ?div({style:{textAlign:"center",color:TH,fontSize:"13px",padding:"16px"}},"Žádné výdaje tento měsíc")
-          :div({style:{display:"flex",alignItems:"flex-start",gap:14}},
-              div({style:{flexShrink:0}},e(PieChart,{data:pieData,size:148,selected:selPie,onSelect:setSelPie})),
+          :e(React.Fragment,null,
+            div({style:{display:"flex",alignItems:"flex-start",gap:14}},
+              div({style:{flexShrink:0}},e(PieChart,{data:pieData,size:148,selected:selPie,onSelect:(id)=>{setSelPie(prev=>prev===id?null:id);}})),
               div({style:{flex:1,overflowY:"auto",maxHeight:170}},
                 ...pieData.map((d,i)=>{
                   const tot=pieData.reduce((s,x)=>s+x.value,0);
                   const isSel=selPie===d.id,isDim=selPie&&!isSel;
                   return div({key:i,className:"legend-item",
-                    style:{opacity:isDim?0.3:1,background:isSel?d.color+"15":"transparent",border:isSel?`1px solid ${d.color}50`:"1px solid transparent"},
+                    style:{opacity:isDim?0.3:1,background:isSel?d.color+"15":"transparent",border:isSel?`1px solid ${d.color}50`:"1px solid transparent",transition:"all 0.18s"},
                     onClick:()=>setSelPie(isSel?null:d.id)},
                     div({style:{width:11,height:11,borderRadius:"50%",background:d.color,flexShrink:0,boxShadow:isSel?`0 0 5px ${d.color}`:"none"}}),
                     span({style:{fontSize:"14px",color:"#1a1a1a",flex:1,fontWeight:isSel?700:500}},`${d.icon} ${d.label}`),
@@ -886,7 +887,38 @@ function App(){
                   );
                 })
               )
-            )
+            ),
+            // Detail plateb vybrané kategorie
+            selPie&&(()=>{
+              const cat=pieData.find(d=>d.id===selPie);
+              if(!cat) return null;
+              const catTxs=fil.filter(t=>t.type==="expense"&&t.category===selPie)
+                .sort((a,b)=>new Date(b.date)-new Date(a.date));
+              return div({style:{marginTop:14,paddingTop:14,borderTop:"1px solid #f0ede8"}},
+                // Hlavička
+                div({style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
+                  div({style:{width:10,height:10,borderRadius:"50%",background:cat.color,flexShrink:0}}),
+                  span({style:{fontSize:"14px",fontWeight:700,color:"#1a1a1a",flex:1}},`${cat.icon} ${cat.label}`),
+                  span({style:{fontSize:"15px",fontWeight:800,color:cat.color}},fmtCZK(cat.value)),
+                  btn({onClick:()=>setSelPie(null),style:{background:"none",border:"none",cursor:"pointer",fontSize:"18px",color:"#ccc",padding:"0 2px",flexShrink:0}},"×")
+                ),
+                // Seznam plateb
+                catTxs.length===0
+                  ?div({style:{textAlign:"center",color:TH,fontSize:"13px",padding:"8px"}},"Žádné platby")
+                  :catTxs.map((tx,i)=>div({key:tx.id,
+                    style:{display:"flex",alignItems:"center",gap:10,padding:"8px 0",
+                      borderTop:i===0?"none":`1px solid #f5f2ee`}},
+                    div({style:{flex:1,minWidth:0}},
+                      div({style:{fontSize:"13px",fontWeight:600,color:"#1a1a1a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},
+                        tx.note||cat.label),
+                      div({style:{fontSize:"11px",color:TH}},fmtDate(tx.date))
+                    ),
+                    span({style:{fontSize:"14px",fontWeight:700,color:"#EF4444",flexShrink:0}},
+                      "−"+fmtCZK(tx.amount))
+                  ))
+              );
+            })()
+          )
       ),
       div({key:"statsec",className:"sec"},"Tento měsíc"),
       div({key:"stat",className:"card",style:{display:"flex",gap:0,padding:0,overflow:"hidden"}},
