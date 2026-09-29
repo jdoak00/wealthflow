@@ -882,7 +882,7 @@ function App(){
                     style:{opacity:isDim?0.3:1,background:isSel?d.color+"15":"transparent",border:isSel?`1px solid ${d.color}50`:"1px solid transparent",transition:"all 0.18s"},
                     onClick:()=>setSelPie(isSel?null:d.id)},
                     div({style:{width:11,height:11,borderRadius:"50%",background:d.color,flexShrink:0,boxShadow:isSel?`0 0 5px ${d.color}`:"none"}}),
-                    span({style:{fontSize:"14px",color:"#1a1a1a",flex:1,fontWeight:isSel?700:500}},(d.icon==="DOUBEK"?d.label:`${d.icon} ${d.label}`)),
+                    span({style:{fontSize:"14px",color:"#1a1a1a",flex:1,fontWeight:isSel?700:500}},d.label),
                     span({style:{fontSize:"14px",fontWeight:800,color:d.color}},Math.round((d.value/tot)*100)+"%")
                   );
                 })
@@ -898,7 +898,7 @@ function App(){
                 // Hlavička
                 div({style:{display:"flex",alignItems:"center",gap:8,marginBottom:10}},
                   div({style:{width:10,height:10,borderRadius:"50%",background:cat.color,flexShrink:0}}),
-                  span({style:{fontSize:"14px",fontWeight:700,color:"#1a1a1a",flex:1}},(cat.icon==="DOUBEK"?cat.label:`${cat.icon} ${cat.label}`)),
+                  span({style:{fontSize:"14px",fontWeight:700,color:"#1a1a1a",flex:1}},cat.label),
                   span({style:{fontSize:"15px",fontWeight:800,color:cat.color}},fmtCZK(cat.value)),
                   btn({onClick:()=>setSelPie(null),style:{background:"none",border:"none",cursor:"pointer",fontSize:"18px",color:"#ccc",padding:"0 2px",flexShrink:0}},"×")
                 ),
