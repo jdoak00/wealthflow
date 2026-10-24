@@ -1337,6 +1337,11 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById("app-frame")).render(e(App,null));
+
+// Offline režim: uloží aplikaci do telefonu, aby šla spustit i bez internetu.
+if("serviceWorker" in navigator&&!window.WF_DEMO&&(location.protocol==="https:"||location.hostname==="localhost")){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
 </script>
 </body>
 </html>
