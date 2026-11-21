@@ -1,8 +1,8 @@
 // Wealthflow – offline režim.
-// Aplikace (index.html) se načítá nejdřív z internetu, aby se vždy dostala nejnovější verze;
-// bez připojení se použije uložená kopie. React a písmo se berou z uložené kopie.
+// Aplikace (index.html) se spouští hned z uložené kopie a nová verze se stáhne na pozadí
+// (projeví se při dalším otevření). React a písmo se berou z uložené kopie.
 // Data (localStorage) service worker neřeší – ta jsou v telefonu vždy.
-const CACHE="wealthflow-v2";
+const CACHE="wealthflow-v3";
 const APP_URL=new URL("./",self.location).href;
 const LIBS=[
   "https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js",
@@ -25,23 +25,16 @@ self.addEventListener("activate",event=>{
   })());
 });
 
-// Síť s časovým limitem, aby slabý signál nezdržoval spuštění.
-function fetchWithTimeout(req,ms){
-  return new Promise((resolve,reject)=>{
-    const t=setTimeout(()=>reject(new Error("timeout")),ms);
-    fetch(req).then(r=>{clearTimeout(t);resolve(r);},err=>{clearTimeout(t);reject(err);});
-  });
-}
-
-async function appShell(req){
+// Uložená kopie hned, aktualizace na pozadí. Bez uložené kopie (první spuštění) se čeká na síť.
+async function appShell(event){
   const cache=await caches.open(CACHE);
-  try{
-    const res=await fetchWithTimeout(req,4000);
+  const update=fetch(event.request,{cache:"no-cache"}).then(async res=>{
     if(res&&res.ok)await cache.put(APP_URL,res.clone());
     return res;
-  }catch{
-    return (await cache.match(APP_URL))||Response.error();
-  }
+  });
+  const hit=await cache.match(APP_URL);
+  if(hit){event.waitUntil(update.catch(()=>{}));return hit;}
+  try{return await update;}catch{return Response.error();}
 }
 
 async function cacheFirst(req){
@@ -57,6 +50,6 @@ self.addEventListener("fetch",event=>{
   const req=event.request;
   if(req.method!=="GET")return;
   const url=new URL(req.url);
-  if(req.mode==="navigate"&&url.origin===self.location.origin){event.respondWith(appShell(req));return;}
+  if(req.mode==="navigate"&&url.origin===self.location.origin){event.respondWith(appShell(event));return;}
   if(url.hostname==="cdn.jsdelivr.net"||url.hostname==="fonts.googleapis.com"||url.hostname==="fonts.gstatic.com"){event.respondWith(cacheFirst(req));return;}
 });

@@ -360,6 +360,18 @@ function catList(type,cfg,withHidden){
 const INV_TYPES=["Akcie","ETF","Bitcoin"];
 const INV_CURR=["CZK","EUR","USD"];
 const INV_ICON={Akcie:"chart-line-up",ETF:"chart-pie-slice",Bitcoin:"currency-btc"};
+// Trhy pro orientační odhad hodnoty investic (data z /api/trhy, viz netlify/functions/trhy.mjs).
+const MARKETS=[
+  {id:"world",label:"Svět"},{id:"usa",label:"USA (S&P 500)"},{id:"tech",label:"USA tech (Nasdaq)"},
+  {id:"europe",label:"Evropa"},{id:"em",label:"Rozvíjející trhy"},{id:"gold",label:"Zlato"},{id:"btc",label:"Bitcoin"},
+];
+const MKT_KEY=IS_DEMO?"wealthflow_trhy_demo":"wealthflow_trhy";
+function mktLabel(id){const m=MARKETS.find(x=>x.id===id);return m?m.label:"";}
+// Poslední uzávěrka v den data nebo před ním (před začátkem dat první dostupná).
+function closeAt(m,date){
+  let i=m.d.length-1;while(i>0&&m.d[i]>date)i--;
+  return m.c[i];
+}
 const MONTHS=["Leden","Únor","Březen","Duben","Květen","Červen","Červenec","Srpen","Září","Říjen","Listopad","Prosinec"];
 const MONTHS_GEN=["ledna","února","března","dubna","května","června","července","srpna","září","října","listopadu","prosince"];
 const MONTHS_SHORT=["led","úno","bře","dub","kvě","čvn","čvc","srp","zář","říj","lis","pro"];
@@ -418,6 +430,9 @@ function makeTx(t,invInfo,invs){
   const tx={id:newId(),created:Date.now(),...t};
   if(t.type==="expense"&&t.category==="investments"&&invInfo&&invInfo.enabled){
     const inv={id:newId(),name:invInfo.name||t.note||"Investice",amount:t.amount,qty:1,type:invInfo.type||"ETF",currency:"CZK",date:t.date,txId:tx.id};
+    // Další nákup stejné investice sleduje stejný trh jako ty předchozí.
+    const same=invs.find(x=>x.name===inv.name&&x.market);
+    if(same)inv.market=same.market;
     tx.invId=inv.id;
     invs=[inv,...invs];
   }
@@ -684,6 +699,7 @@ function InvSheet({inv,onSave,onDelete,onClose}){
   const [price,setPrice]=useState(inv?String(inv.amount).replace(".",","):"");
   const [date,setDate]=useState(inv?inv.date:todayISO());
   const [val,setVal]=useState(inv&&inv.curValue!=null?String(inv.curValue).replace(".",","):"");
+  const [market,setMarket]=useState(inv&&inv.market||"");
   const [err,setErr]=useState("");
   const [confirmDel,setConfirmDel]=useState(false);
   const cost=parseAmt(price)*(parseAmt(qty)||1);
@@ -693,7 +709,7 @@ function InvSheet({inv,onSave,onDelete,onClose}){
   function save(){
     if(!name.trim()){setErr("Zadej název investice.");return;}
     if(parseAmt(price)<=0){setErr("Zadej nákupní cenu.");return;}
-    const out={name:name.trim(),type,currency:cur,qty:parseAmt(qty)||1,amount:parseAmt(price),date};
+    const out={name:name.trim(),type,currency:cur,qty:parseAmt(qty)||1,amount:parseAmt(price),date,market:market||undefined};
     if(v!=null){out.curValue=v;out.curDate=(inv&&inv.curValue===v)?inv.curDate:todayISO();}
     else{out.curValue=undefined;out.curDate=undefined;}
     onSave(out);
@@ -712,6 +728,10 @@ function InvSheet({inv,onSave,onDelete,onClose}){
     e(Field,{label:"Současná hodnota celkem ("+cur+")"},e("input",{className:"inp num",id:"inv-value",inputMode:"decimal",placeholder:"Nevyplněno = nákupní cena",value:val,onChange:ev=>setVal(ev.target.value)})),
     pl!=null&&cost>0&&e("div",{className:pl>=0?"pos":"neg",style:{fontSize:14,fontWeight:700}},
       (pl>=0?"Zisk ":"Ztráta ")+fmtMoney(Math.abs(pl),cur)+" ("+(pl>=0?"+":"−")+Math.abs(pl/cost*100).toFixed(1).replace(".",",")+" %)"),
+    e(Field,{label:"Sledovat trh (orientační odhad)"},e("div",{className:"chips"},
+      e("button",{key:"none",className:"chip"+(market===""?" on":""),onClick:()=>setMarket("")},"Nesledovat"),
+      ...MARKETS.map(m=>e("button",{key:m.id,className:"chip"+(market===m.id?" on":""),onClick:()=>setMarket(m.id)},m.label)))),
+    market&&e("div",{className:"muted",style:{fontSize:13,lineHeight:1.45}},"Hodnota se každý pracovní den posune o tolik procent, o kolik se změnil vybraný trh"+(val===""?" od data nákupu":" od zadání současné hodnoty")+". Je to jen odhad."),
     inv&&inv.txId&&e("div",{className:"muted",style:{fontSize:13}},"Přidáno z platby. Změna ceny upraví i výdaj."),
     err&&e("div",{className:"err"},err),
     confirmDel&&e("div",{className:"confirm"},e("b",null,"Smazat investici "+(inv.name||"")+"?"),
@@ -868,7 +888,7 @@ function FixedGroup({title,color,rows,type,onAdd,onCommit,onRemove}){
 function App(){
   const [data,setData]=useState(loadInitial);
   const now=new Date();
-  const [tab,setTab]=useState("home");
+  const [tab,setTab]=useState("tx");
   const [month,setMonth]=useState(now.getMonth());
   const [year,setYear]=useState(now.getFullYear());
   const [txFilter,setTxFilter]=useState("all");
@@ -881,6 +901,7 @@ function App(){
   const [importErr,setImportErr]=useState("");
   const [pendingImport,setPendingImport]=useState(null);
   const [showPlan,setShowPlan]=useState(false);
+  const [mkt,setMkt]=useState(()=>{try{return JSON.parse(lsGet(MKT_KEY))||null;}catch{return null;}});
   const scrollRef=useRef(null);
   const fileRef=useRef(null);
   const cfg=data.categories;
@@ -898,6 +919,25 @@ function App(){
     const meta=document.querySelector('meta[name="theme-color"]');
     if(meta)meta.setAttribute("content",getComputedStyle(root).getPropertyValue("--bg").trim()||"#F4EFE6");
   },[data.settings.theme]);
+  // Uzávěrky trhů: stáhnou se při otevření, nejvýš jednou za 3 hodiny. Bez signálu zůstanou poslední známé.
+  const mktIds=[...new Set(data.investments.map(i=>i.market).filter(Boolean))].sort();
+  const mktFrom=data.investments.filter(i=>i.market).map(i=>i.curValue!=null&&i.curDate?i.curDate:i.date).sort()[0]||"";
+  useEffect(()=>{
+    if(!mktIds.length)return;
+    function load(){
+      if(document.visibilityState!=="visible")return;
+      const c=mkt;
+      if(c&&Date.now()-c.at<3*3600e3&&mktIds.every(id=>c.markets[id])&&c.od<=mktFrom)return;
+      fetch("/api/trhy?trhy="+mktIds.join(",")+"&od="+mktFrom).then(r=>r.ok?r.json():null).then(j=>{
+        if(!j||!j.markets||!Object.keys(j.markets).length)return;
+        const next={at:Date.now(),od:mktFrom,markets:{...(c?c.markets:{}),...j.markets}};
+        lsSet(MKT_KEY,JSON.stringify(next));setMkt(next);
+      }).catch(()=>{});
+    }
+    load();
+    document.addEventListener("visibilitychange",load);
+    return()=>document.removeEventListener("visibilitychange",load);
+  },[mktIds.join(","),mktFrom,mkt]);
   useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(""),1800);return()=>clearTimeout(t);},[toast]);
   useEffect(()=>{if(scrollRef.current)scrollRef.current.scrollTop=0;},[tab]);
 
@@ -920,7 +960,32 @@ function App(){
   const cash=(bal?bal.amount:data.netWorthStart)+sumOf(cashTx,"income")-sumOf(cashTx,"expense");
   const rates={CZK:1,...data.settings.rates};
   const invCost=i=>(Number(i.amount)||0)*(Number(i.qty)||1);
-  const invVal=i=>i.curValue!=null?Number(i.curValue):invCost(i);
+  const invManual=i=>i.curValue!=null?Number(i.curValue):invCost(i);
+  // Odhad podle trhu: ručně zadaná hodnota (nebo nákup) posunutá o změnu trhu od jejího data.
+  const invMkt=i=>{const m=i.market&&mkt&&mkt.markets[i.market];return m&&m.c.length?m:null;};
+  const invBaseDate=i=>i.curValue!=null&&i.curDate?i.curDate:i.date;
+  const invEst=i=>{
+    const m=invMkt(i);if(!m)return null;
+    const v=invManual(i)*m.c[m.c.length-1]/closeAt(m,invBaseDate(i));
+    return (i.currency||"CZK")==="CZK"?Math.round(v):Math.round(v*100)/100;
+  };
+  const invVal=i=>{const v=invEst(i);return v!=null?v:invManual(i);};
+  // Změna za poslední obchodní den (u nákupu z toho dne nula).
+  const invDay=i=>{
+    const m=invMkt(i);if(!m||m.c.length<2)return 0;
+    const n=m.c.length,bd=invBaseDate(i);
+    if(bd>=m.d[n-1])return 0;
+    return invManual(i)*(m.c[n-1]-m.c[n-2])/closeAt(m,bd);
+  };
+  const tracked=data.investments.filter(i=>invMkt(i));
+  const dayCZK=Math.round(tracked.reduce((s,i)=>s+invDay(i)*(rates[i.currency||"CZK"]||1),0));
+  const dayBase=tracked.reduce((s,i)=>s+invVal(i)*(rates[i.currency||"CZK"]||1),0)-dayCZK;
+  const mktLast=tracked.map(i=>invMkt(i).d[invMkt(i).d.length-1]).sort().pop();
+  // Řádek do zeleného rámečku majetku (Přehled i Majetek).
+  const dayLine=tracked.length>0&&e("span",{key:"day",className:"num",style:{fontSize:13,color:"var(--brand-sub)"}},
+    "Za den "+(mktLast?parseISO(mktLast).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"}):"")+": ",
+    e("b",{style:{color:"var(--brand-fg)"}},(dayCZK>=0?"▲ +":"▼ −")+fmtCZK(Math.abs(dayCZK))+(dayBase?" ("+(dayCZK>=0?"+":"−")+Math.abs(dayCZK/dayBase*100).toFixed(1).replace(".",",")+" %)":"")),
+    " · odhad");
   const invTotalCZK=data.investments.reduce((s,i)=>s+invVal(i)*(rates[i.currency||"CZK"]||1),0);
   const invCostCZK=data.investments.reduce((s,i)=>s+invCost(i)*(rates[i.currency||"CZK"]||1),0);
   const total=cash+invTotalCZK;
@@ -1046,10 +1111,51 @@ function App(){
   }
 
   // ── Obrazovky ──
-  // Domů: hlavní je kolik jsem tento měsíc utratil a za co (dlaždice kategorií).
+  // Domů: jak na tom jsem teď – majetek, tento měsíc a nejbližší pravidelné platby.
   function renderHome(){
-    const up=upcoming(data.recurring,10);
-    const recent=[...fil].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,3);
+    const up=upcoming(data.recurring,7);
+    const curMk=ym(now.getFullYear(),now.getMonth());
+    const cur=data.transactions.filter(t=>inMonth(t,curMk));
+    const cInc=sumOf(cur,"income"),cExp=sumOf(cur,"expense");
+    const pl=invTotalCZK-invCostCZK;
+    const goMonth=t=>{setMonth(now.getMonth());setYear(now.getFullYear());setSelCat(null);setTab(t);};
+    return [
+      e("div",{key:"hero",className:"hero"},
+        e("span",{className:"lbl"},"Čistý majetek celkem"),
+        e("span",{className:"big num"},bal?fmtCZK(total):"—"),
+        data.investments.length>0&&e("span",{className:"gold num"},"Investice "+(pl>=0?"+":"−")+fmtCZK(Math.abs(pl))+(invCostCZK?" ("+(pl>=0?"+":"−")+Math.abs(pl/invCostCZK*100).toFixed(1).replace(".",",")+" %)":"")),
+        dayLine),
+      e("div",{key:"assets",className:"card flush"},
+        e("button",{className:"row",onClick:()=>bal?setTab("assets"):setSheet({k:"bal"})},
+          e("span",{className:"cic",style:{"--c":"#3F8A4F",width:38,height:38}},e(Icon,{n:"wallet",size:21})),
+          e("div",{className:"main"},e("div",{className:"ttl"},"Peníze na účtech"),e("div",{className:"sub"},bal?"stav k "+parseISO(bal.date).toLocaleDateString("cs-CZ")+" + pohyby od té doby":"klepni a zadej aktuální stav")),
+          e("div",{className:"amt num"},bal?fmtCZK(cash):"")),
+        e("button",{className:"row",onClick:()=>setTab("assets")},
+          e("span",{className:"cic",style:{"--c":"#2E6F8E",width:38,height:38}},e(Icon,{n:"chart-line-up",size:21})),
+          e("div",{className:"main"},e("div",{className:"ttl"},"Investice"),e("div",{className:"sub"},data.investments.length?data.investments.length+" "+(data.investments.length===1?"položka":data.investments.length<5?"položky":"položek"):"zatím žádné")),
+          e("div",{className:"amt num"},fmtCZK(invTotalCZK)))),
+      e("div",{key:"msec",className:"sec"},e("h3",null,"Tento měsíc")),
+      e("div",{key:"month",className:"card"},
+        e("button",{className:"linkrow",onClick:()=>goMonth("analysis")},
+          e("div",{className:"main"},"Výdaje",e("span",{className:"num"},"příjmy "+fmtCZK(cInc)+" · bilance "+fmtSigned(cInc-cExp))),
+          e("b",{className:"num",style:{fontSize:17}},fmtCZK(cExp)),
+          e(Icon,{n:"caret-right",size:18}))),
+      e("div",{key:"usec",className:"sec"},e("h3",null,"Příštích 7 dní"),e("button",{onClick:()=>setTab("recurring")},"Pravidelné platby")),
+      e("div",{key:"up",className:"card flush"},
+        up.length===0?e("div",{className:"empty"},"Žádná pravidelná platba se v příštích 7 dnech nezapíše."):
+        up.map(u=>{
+          const c=catById(u.rule.category,cfg),inc=u.rule.type==="income";
+          return e("button",{key:u.rule.id,className:"row",onClick:()=>setTab("recurring")},
+            e(CatBadge,{cat:c,size:42}),
+            e("div",{className:"main"},e("div",{className:"ttl"},u.rule.note||c.label),
+              e("div",{className:"sub"},u.diff===1?"zítra":"za "+u.diff+" "+(u.diff<5?"dny":"dní"))),
+            e("div",{className:"amt num "+(inc?"pos":"")},(inc?"+":"−")+fmtCZK(u.rule.amount)));
+        })),
+    ];
+  }
+
+  // Dlaždice kategorií (Analýza): kolik jsem utratil a za co, oproti obvyklému měsíci.
+  function renderCatTiles(){
     // Běžný měsíc = průměr posledních 3 měsíců, ve kterých je aspoň jedna platba.
     const hist=[1,2,3].map(k=>addMonths(mk,-k)).map(k=>data.transactions.filter(t=>inMonth(t,k))).filter(l=>l.length);
     const usual=id=>hist.length?hist.reduce((s,l)=>s+l.filter(t=>t.type==="expense"&&t.category===id).reduce((a,t)=>a+t.amount,0),0)/hist.length:null;
@@ -1075,19 +1181,6 @@ function App(){
           e("span",{className:"ch"},e(CatBadge,{cat:c,size:32}),e("span",{className:"cl"},c.label)),
           e("span",{className:"cv num"},fmtCZK(c.value)),
           deltaText(c.value,usual(c.id))))),
-      up.length>0&&e("div",{key:"up",className:"card"},
-        e("button",{className:"linkrow",onClick:()=>setTab("recurring")},
-          e("span",{className:"cic",style:{"--c":"#1F3B2D",width:38,height:38}},e(Icon,{n:"arrows-clockwise",size:20})),
-          e("div",{className:"main"},"Brzy se zapíše",e("span",null,up.slice(0,2).map(u=>(u.rule.note||catById(u.rule.category,cfg).label)+" "+(u.diff===1?"zítra":"za "+u.diff+" "+(u.diff<5?"dny":"dní"))).join(" · "))),
-          e(Icon,{n:"caret-right",size:18}))),
-      recent.length>0&&e("div",{key:"rsec",className:"sec"},e("h3",null,"Poslední platby"),e("button",{onClick:()=>{setCatFilter(null);setTab("tx");}},"Všechny")),
-      recent.length>0&&e("div",{key:"recent",className:"card flush"},...recent.map(TxRow)),
-      e("div",{key:"assets",className:"card"},
-        e("button",{className:"linkrow",onClick:()=>bal?setTab("assets"):setSheet({k:"bal"})},
-          e("span",{className:"cic",style:{"--c":"#2E6F8E",width:38,height:38}},e(Icon,{n:"wallet",size:20})),
-          bal?e("div",{className:"main"},"Majetek",e("span",{className:"num"},"peníze "+fmtCZK(cash)+" · investice "+fmtCZK(invTotalCZK)))
-            :e("div",{className:"main"},"Majetek",e("span",null,"Zadej, kolik máš teď peněz")),
-          bal?e("b",{className:"num",style:{fontSize:15}},fmtCZK(total)):e(Icon,{n:"caret-right",size:18}))),
     ].filter(Boolean);
   }
 
@@ -1130,6 +1223,8 @@ function App(){
     const F=data.fixedExpenses;
     const planSum=[...F.necessary,...F.investment,...F.unnecessary].reduce((s,r)=>s+parseAmt(r.amount),0);
     return [
+      ...renderCatTiles(),
+      e("div",{key:"dsec",className:"sec"},e("h3",null,"Podrobně")),
       e(Seg,{key:"seg",cls:"exp",value:anaType,onChange:v=>{setAnaType(v);setSelCat(null);},options:[{v:"expense",l:"Výdaje",c:"e"},{v:"income",l:"Příjmy",c:"i"}]}),
       e("div",{key:"donut",className:"card"},
         items.length===0?e("div",{className:"empty"},anaType==="expense"?"Tento měsíc žádné výdaje.":"Tento měsíc žádné příjmy."):
@@ -1181,6 +1276,7 @@ function App(){
         e("span",{className:"lbl"},"Čistý majetek celkem"),
         e("span",{className:"big num"},fmtCZK(total)),
         data.investments.length>0&&e("span",{className:"gold num"},"Investice "+(pl>=0?"+":"−")+fmtCZK(Math.abs(pl))+(invCostCZK?" ("+(pl>=0?"+":"−")+Math.abs(pl/invCostCZK*100).toFixed(1).replace(".",",")+" %)":"")),
+        dayLine,
         e("div",{className:"split"},
           e("span",null,"Peníze",e("b",{className:"num"},bal?fmtCZK(cash):"nezadáno")),
           e("span",null,"Investice",e("b",{className:"num"},fmtCZK(invTotalCZK))))),
@@ -1205,9 +1301,10 @@ function App(){
           return e("button",{key:i.id,className:"row",onClick:()=>setSheet({k:"inv",inv:i})},
             e("span",{className:"cic",style:{"--c":"#2E6F8E",width:42,height:42}},e(Icon,{n:INV_ICON[i.type]||"chart-line-up",size:22})),
             e("div",{className:"main"},e("div",{className:"ttl"},i.name),
-              e("div",{className:"sub"},(i.name===i.type?"":i.type+" · ")+(i.qty&&i.qty!==1?String(i.qty).replace(".",",")+" ks · ":"")+parseISO(i.date).toLocaleDateString("cs-CZ"),i.txId&&e(React.Fragment,null," · ",e(Icon,{n:"receipt",size:13})))),
+              e("div",{className:"sub"},(i.name===i.type?"":i.type+" · ")+(i.qty&&i.qty!==1?String(i.qty).replace(".",",")+" ks · ":"")+parseISO(i.date).toLocaleDateString("cs-CZ"),i.txId&&e(React.Fragment,null," · ",e(Icon,{n:"receipt",size:13})),
+                i.market&&" · odhad: "+mktLabel(i.market))),
             e("div",{className:"amt num"},fmtMoney(val,cur),
-              i.curValue!=null?e("small",{className:d>=0?"pos":"neg"},cost?(d>=0?"+":"−")+Math.abs(d/cost*100).toFixed(1).replace(".",",")+" %":(d>=0?"+":"−")+fmtMoney(Math.abs(d),cur)):e("small",null,"zadej hodnotu")));
+              i.curValue!=null||invMkt(i)?e("small",{className:d>=0?"pos":"neg"},cost?(d>=0?"+":"−")+Math.abs(d/cost*100).toFixed(1).replace(".",",")+" %":(d>=0?"+":"−")+fmtMoney(Math.abs(d),cur)):e("small",null,"zadej hodnotu")));
         })),
       (data.investments.some(i=>i.currency&&i.currency!=="CZK"))&&e("div",{key:"rate",className:"muted",style:{fontSize:12,margin:"0 4px"}},"Přepočet: 1 € = "+rates.EUR+" Kč, 1 $ = "+rates.USD+" Kč. Kurz změníš v Nastavení."),
       e("div",{key:"hsec",className:"sec"},e("h3",null,"Ostatní")),
@@ -1304,9 +1401,9 @@ function App(){
     {id:"analysis",icon:"chart-pie-slice",label:"Analýza"},
     {id:"assets",icon:"wallet",label:"Majetek"},
   ];
-  const TITLES={assets:"Majetek",house:"Domek",settings:"Nastavení",recurring:"Pravidelné platby"};
-  const BACK={recurring:"home",settings:"home",house:"assets"};
-  const monthTabs=tab==="home"||tab==="tx"||tab==="analysis";
+  const TITLES={home:"Přehled",assets:"Majetek",house:"Domek",settings:"Nastavení",recurring:"Pravidelné platby"};
+  const BACK={recurring:"home",settings:"tx",house:"assets"};
+  const monthTabs=tab==="tx"||tab==="analysis";
   const navTab=BACK[tab]?(tab==="house"?"assets":null):tab;
   const body=tab==="home"?renderHome():tab==="tx"?renderTx():tab==="analysis"?renderAnalysis():tab==="assets"?renderAssets():tab==="house"?renderHouse():tab==="recurring"?renderRecurring():renderSettings();
   function goTab(id){if(id==="tx"&&tab!=="tx")setCatFilter(null);setTab(id);}
