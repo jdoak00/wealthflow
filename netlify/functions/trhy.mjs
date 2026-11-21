@@ -1,14 +1,16 @@
 // Wealthflow – denní uzávěrky trhů pro orientační odhad hodnoty investic.
-// Aplikace volá /api/trhy?trhy=world,usa&od=2024-01-15 a dostane uzávěrky od daného dne.
+// Aplikace volá /api/trhy?trhy=sp500,eurczk&od=2024-01-15 a dostane uzávěrky od daného dne.
 // Data bere z Yahoo Finance (bez klíče). Odpověď drží Netlify hodinu v mezipaměti.
 const MARKETS={
-  world:"URTH",   // Svět (MSCI World)
-  usa:"^GSPC",    // USA (S&P 500)
-  tech:"^NDX",    // USA tech (Nasdaq 100)
-  europe:"^STOXX",// Evropa (STOXX 600)
-  em:"EEM",       // Rozvíjející trhy
-  gold:"GC=F",    // Zlato
-  btc:"BTC-USD",  // Bitcoin
+  sp500:"VUAA.DE",   // Vanguard S&P 500 (Xetra, EUR)
+  ai:"XAIX.DE",      // Xtrackers Artificial Intelligence & Big Data (Xetra, EUR)
+  india:"NDIA.L",    // iShares MSCI India (Londýn, USD)
+  vna:"VNA.DE",      // Vonovia (Xetra, EUR)
+  sofi:"SOFI",       // SoFi Technologies (USD)
+  nu:"NU",           // Nu Holdings (USD)
+  att:"T",           // AT&T (USD)
+  eurczk:"EURCZK=X", // kurz EUR → CZK
+  usdczk:"USDCZK=X", // kurz USD → CZK
 };
 
 async function closes(symbol,from){
@@ -17,9 +19,10 @@ async function closes(symbol,from){
   const res=await fetch(url,{headers:{"User-Agent":"Mozilla/5.0"}});
   if(!res.ok)throw new Error(symbol+" "+res.status);
   const r=(await res.json()).chart.result[0];
-  const ts=r.timestamp||[],cl=r.indicators.quote[0].close||[];
+  const ts=r.timestamp||[],cl=r.indicators.quote[0].close||[],off=(r.meta&&r.meta.gmtoffset)||0;
   const d=[],c=[];
-  ts.forEach((t,i)=>{if(cl[i]!=null){d.push(new Date(t*1000).toISOString().slice(0,10));c.push(Math.round(cl[i]*1e4)/1e4);}});
+  // Den obchodu v místním čase burzy (jinak by se v létě kurz posunul o den).
+  ts.forEach((t,i)=>{if(cl[i]!=null){d.push(new Date((t+off)*1000).toISOString().slice(0,10));c.push(Math.round(cl[i]*1e4)/1e4);}});
   return {d,c};
 }
 

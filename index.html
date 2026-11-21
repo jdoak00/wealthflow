@@ -360,13 +360,27 @@ function catList(type,cfg,withHidden){
 const INV_TYPES=["Akcie","ETF","Bitcoin"];
 const INV_CURR=["CZK","EUR","USD"];
 const INV_ICON={Akcie:"chart-line-up",ETF:"chart-pie-slice",Bitcoin:"currency-btc"};
-// Trhy pro orientační odhad hodnoty investic (data z /api/trhy, viz netlify/functions/trhy.mjs).
+// Tituly z XTB pro hodnotu investic (denní ceny z /api/trhy, viz netlify/functions/trhy.mjs).
+// cur = měna, ve které se titul obchoduje. Titul se pozná podle názvu investice;
+// inv.market ho může ručně změnit ("none" = nesledovat).
 const MARKETS=[
-  {id:"world",label:"Svět"},{id:"usa",label:"USA (S&P 500)"},{id:"tech",label:"USA tech (Nasdaq)"},
-  {id:"europe",label:"Evropa"},{id:"em",label:"Rozvíjející trhy"},{id:"gold",label:"Zlato"},{id:"btc",label:"Bitcoin"},
+  {id:"sp500",label:"S&P 500",cur:"EUR",re:/s\s*&\s*p|s\s*p\s*500|sp500/i},
+  {id:"ai",label:"AI & Big Data",cur:"EUR",re:/(^|[^a-zá-ž])ai([^a-zá-ž]|$)|big\s*data|um[eě]l[aá]\s*inteligen/i},
+  {id:"india",label:"MSCI India",cur:"USD",re:/indi[ae]/i},
+  {id:"vna",label:"Vonovia",cur:"EUR",re:/vonovia/i},
+  {id:"sofi",label:"SoFi",cur:"USD",re:/sofi/i},
+  {id:"nu",label:"Nu Holdings",cur:"USD",re:/(^|[^a-zá-ž])nu([^a-zá-ž]|$)/i},
+  {id:"att",label:"AT&T",cur:"USD",re:/at\s*&\s*t|at\s*and\s*t/i},
 ];
+const FX_ID={EUR:"eurczk",USD:"usdczk"};
 const MKT_KEY=IS_DEMO?"wealthflow_trhy_demo":"wealthflow_trhy";
 function mktLabel(id){const m=MARKETS.find(x=>x.id===id);return m?m.label:"";}
+function mktAuto(name){const m=MARKETS.find(x=>x.re.test(name||""));return m?m.id:null;}
+function mktOf(i){
+  if(i.market==="none")return null;
+  if(i.market&&MARKETS.some(m=>m.id===i.market))return i.market;
+  return mktAuto(i.name);
+}
 // Poslední uzávěrka v den data nebo před ním (před začátkem dat první dostupná).
 function closeAt(m,date){
   let i=m.d.length-1;while(i>0&&m.d[i]>date)i--;
@@ -430,7 +444,7 @@ function makeTx(t,invInfo,invs){
   const tx={id:newId(),created:Date.now(),...t};
   if(t.type==="expense"&&t.category==="investments"&&invInfo&&invInfo.enabled){
     const inv={id:newId(),name:invInfo.name||t.note||"Investice",amount:t.amount,qty:1,type:invInfo.type||"ETF",currency:"CZK",date:t.date,txId:tx.id};
-    // Další nákup stejné investice sleduje stejný trh jako ty předchozí.
+    // Další nákup stejné investice sleduje stejný fond jako ty předchozí (pokud byl zvolen ručně).
     const same=invs.find(x=>x.name===inv.name&&x.market);
     if(same)inv.market=same.market;
     tx.invId=inv.id;
@@ -699,7 +713,7 @@ function InvSheet({inv,onSave,onDelete,onClose}){
   const [price,setPrice]=useState(inv?String(inv.amount).replace(".",","):"");
   const [date,setDate]=useState(inv?inv.date:todayISO());
   const [val,setVal]=useState(inv&&inv.curValue!=null?String(inv.curValue).replace(".",","):"");
-  const [market,setMarket]=useState(inv&&inv.market||"");
+  const [market,setMarket]=useState(inv&&inv.market&&(inv.market==="none"||MARKETS.some(m=>m.id===inv.market))?inv.market:"");
   const [err,setErr]=useState("");
   const [confirmDel,setConfirmDel]=useState(false);
   const cost=parseAmt(price)*(parseAmt(qty)||1);
@@ -709,7 +723,9 @@ function InvSheet({inv,onSave,onDelete,onClose}){
   function save(){
     if(!name.trim()){setErr("Zadej název investice.");return;}
     if(parseAmt(price)<=0){setErr("Zadej nákupní cenu.");return;}
-    const out={name:name.trim(),type,currency:cur,qty:parseAmt(qty)||1,amount:parseAmt(price),date,market:market||undefined};
+    // Fond se ukládá jen tehdy, když se liší od toho, co se pozná z názvu.
+    const effMkt=market||mktAuto(name)||"none";
+    const out={name:name.trim(),type,currency:cur,qty:parseAmt(qty)||1,amount:parseAmt(price),date,market:effMkt===(mktAuto(name)||"none")?undefined:effMkt};
     if(v!=null){out.curValue=v;out.curDate=(inv&&inv.curValue===v)?inv.curDate:todayISO();}
     else{out.curValue=undefined;out.curDate=undefined;}
     onSave(out);
@@ -728,10 +744,14 @@ function InvSheet({inv,onSave,onDelete,onClose}){
     e(Field,{label:"Současná hodnota celkem ("+cur+")"},e("input",{className:"inp num",id:"inv-value",inputMode:"decimal",placeholder:"Nevyplněno = nákupní cena",value:val,onChange:ev=>setVal(ev.target.value)})),
     pl!=null&&cost>0&&e("div",{className:pl>=0?"pos":"neg",style:{fontSize:14,fontWeight:700}},
       (pl>=0?"Zisk ":"Ztráta ")+fmtMoney(Math.abs(pl),cur)+" ("+(pl>=0?"+":"−")+Math.abs(pl/cost*100).toFixed(1).replace(".",",")+" %)"),
-    e(Field,{label:"Sledovat trh (orientační odhad)"},e("div",{className:"chips"},
-      e("button",{key:"none",className:"chip"+(market===""?" on":""),onClick:()=>setMarket("")},"Nesledovat"),
-      ...MARKETS.map(m=>e("button",{key:m.id,className:"chip"+(market===m.id?" on":""),onClick:()=>setMarket(m.id)},m.label)))),
-    market&&e("div",{className:"muted",style:{fontSize:13,lineHeight:1.45}},"Hodnota se každý pracovní den posune o tolik procent, o kolik se změnil vybraný trh"+(val===""?" od data nákupu":" od zadání současné hodnoty")+". Je to jen odhad."),
+    (()=>{
+      // Nový záznam: dokud uživatel nevybere, platí fond poznaný z rozepsaného názvu.
+      const eff=market||mktAuto(name)||"none";
+      return e(Field,{label:"Sleduje fond"},e("div",{className:"chips"},
+        ...MARKETS.map(m=>e("button",{key:m.id,className:"chip"+(eff===m.id?" on":""),onClick:()=>setMarket(m.id)},m.label)),
+        e("button",{key:"none",className:"chip"+(eff==="none"?" on":""),onClick:()=>setMarket("none")},"Nesledovat")));
+    })(),
+    (market||mktAuto(name)||"none")!=="none"&&e("div",{className:"muted",style:{fontSize:13,lineHeight:1.45}},"Hodnota se každý pracovní den posune podle ceny fondu"+(cur==="CZK"?" a kurzu eura":"")+(val===""?" od data nákupu":" od zadání současné hodnoty")+". Je to odhad."),
     inv&&inv.txId&&e("div",{className:"muted",style:{fontSize:13}},"Přidáno z platby. Změna ceny upraví i výdaj."),
     err&&e("div",{className:"err"},err),
     confirmDel&&e("div",{className:"confirm"},e("b",null,"Smazat investici "+(inv.name||"")+"?"),
@@ -920,8 +940,9 @@ function App(){
     if(meta)meta.setAttribute("content",getComputedStyle(root).getPropertyValue("--bg").trim()||"#F4EFE6");
   },[data.settings.theme]);
   // Uzávěrky trhů: stáhnou se při otevření, nejvýš jednou za 3 hodiny. Bez signálu zůstanou poslední známé.
-  const mktIds=[...new Set(data.investments.map(i=>i.market).filter(Boolean))].sort();
-  const mktFrom=data.investments.filter(i=>i.market).map(i=>i.curValue!=null&&i.curDate?i.curDate:i.date).sort()[0]||"";
+  const fundIds=[...new Set(data.investments.map(mktOf).filter(Boolean))];
+  const mktIds=fundIds.length?[...fundIds,"eurczk","usdczk"].sort():[];
+  const mktFrom=data.investments.filter(i=>mktOf(i)).map(i=>i.curValue!=null&&i.curDate?i.curDate:i.date).sort()[0]||"";
   useEffect(()=>{
     if(!mktIds.length)return;
     function load(){
@@ -958,24 +979,40 @@ function App(){
   const afterBal=t=>t.date>bal.date||(t.date===bal.date&&t.created&&t.created>bal.at);
   const cashTx=bal?data.transactions.filter(afterBal):data.transactions;
   const cash=(bal?bal.amount:data.netWorthStart)+sumOf(cashTx,"income")-sumOf(cashTx,"expense");
+  // Kurzy: poslední stažený kurz z trhu, jinak ruční kurz z Nastavení.
+  const fxSer=cur=>{const m=FX_ID[cur]&&mkt&&mkt.markets[FX_ID[cur]];return m&&m.c.length?m:null;};
+  const liveRate=cur=>{const m=fxSer(cur);return m?m.c[m.c.length-1]:null;};
   const rates={CZK:1,...data.settings.rates};
+  ["EUR","USD"].forEach(c=>{const r=liveRate(c);if(r)rates[c]=Math.round(r*1000)/1000;});
   const invCost=i=>(Number(i.amount)||0)*(Number(i.qty)||1);
   const invManual=i=>i.curValue!=null?Number(i.curValue):invCost(i);
-  // Odhad podle trhu: ručně zadaná hodnota (nebo nákup) posunutá o změnu trhu od jejího data.
-  const invMkt=i=>{const m=i.market&&mkt&&mkt.markets[i.market];return m&&m.c.length?m:null;};
+  // Hodnota podle denních cen titulu:
+  // – pozice v měně titulu (z XTB): přesně kusy × cena,
+  // – nákup zapsaný v Kč: částka posunutá o změnu ceny titulu a kurzu jeho měny od data nákupu (odhad).
+  const invMkt=i=>{const id=mktOf(i),m=id&&mkt&&mkt.markets[id];return m&&m.c.length?m:null;};
+  const invMktCur=i=>{const m=MARKETS.find(x=>x.id===mktOf(i));return m?m.cur:null;};
+  const invExact=i=>i.curValue==null&&(i.currency||"CZK")===invMktCur(i);
   const invBaseDate=i=>i.curValue!=null&&i.curDate?i.curDate:i.date;
+  const invAt=(i,m,day)=>{
+    if(invExact(i))return (Number(i.qty)||1)*closeAt(m,day);
+    const bd=invBaseDate(i);
+    let r=closeAt(m,day)/closeAt(m,bd);
+    const fx=(i.currency||"CZK")==="CZK"&&fxSer(invMktCur(i));
+    if(fx)r*=closeAt(fx,day)/closeAt(fx,bd);
+    return invManual(i)*r;
+  };
   const invEst=i=>{
     const m=invMkt(i);if(!m)return null;
-    const v=invManual(i)*m.c[m.c.length-1]/closeAt(m,invBaseDate(i));
+    const v=invAt(i,m,m.d[m.d.length-1]);
     return (i.currency||"CZK")==="CZK"?Math.round(v):Math.round(v*100)/100;
   };
   const invVal=i=>{const v=invEst(i);return v!=null?v:invManual(i);};
-  // Změna za poslední obchodní den (u nákupu z toho dne nula).
+  // Změna za poslední obchodní den titulu (u nákupu z toho dne nula).
   const invDay=i=>{
     const m=invMkt(i);if(!m||m.c.length<2)return 0;
-    const n=m.c.length,bd=invBaseDate(i);
-    if(bd>=m.d[n-1])return 0;
-    return invManual(i)*(m.c[n-1]-m.c[n-2])/closeAt(m,bd);
+    const n=m.c.length;
+    if(invBaseDate(i)>=m.d[n-1])return 0;
+    return invAt(i,m,m.d[n-1])-invAt(i,m,m.d[n-2]);
   };
   const tracked=data.investments.filter(i=>invMkt(i));
   const dayCZK=Math.round(tracked.reduce((s,i)=>s+invDay(i)*(rates[i.currency||"CZK"]||1),0));
@@ -986,8 +1023,8 @@ function App(){
     "Za den "+(mktLast?parseISO(mktLast).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"}):"")+": ",
     e("b",{style:{color:"var(--brand-fg)"}},(dayCZK>=0?"▲ +":"▼ −")+fmtCZK(Math.abs(dayCZK))+(dayBase?" ("+(dayCZK>=0?"+":"−")+Math.abs(dayCZK/dayBase*100).toFixed(1).replace(".",",")+" %)":"")),
     " · odhad");
-  const invTotalCZK=data.investments.reduce((s,i)=>s+invVal(i)*(rates[i.currency||"CZK"]||1),0);
-  const invCostCZK=data.investments.reduce((s,i)=>s+invCost(i)*(rates[i.currency||"CZK"]||1),0);
+  const invTotalCZK=Math.round(data.investments.reduce((s,i)=>s+invVal(i)*(rates[i.currency||"CZK"]||1),0));
+  const invCostCZK=Math.round(data.investments.reduce((s,i)=>s+invCost(i)*(rates[i.currency||"CZK"]||1),0));
   const total=cash+invTotalCZK;
   function byCat(list,type){
     const m={};list.filter(t=>t.type===type).forEach(t=>{m[t.category]=(m[t.category]||0)+t.amount;});
@@ -1302,11 +1339,11 @@ function App(){
             e("span",{className:"cic",style:{"--c":"#2E6F8E",width:42,height:42}},e(Icon,{n:INV_ICON[i.type]||"chart-line-up",size:22})),
             e("div",{className:"main"},e("div",{className:"ttl"},i.name),
               e("div",{className:"sub"},(i.name===i.type?"":i.type+" · ")+(i.qty&&i.qty!==1?String(i.qty).replace(".",",")+" ks · ":"")+parseISO(i.date).toLocaleDateString("cs-CZ"),i.txId&&e(React.Fragment,null," · ",e(Icon,{n:"receipt",size:13})),
-                i.market&&" · odhad: "+mktLabel(i.market))),
+                invMkt(i)&&!invExact(i)&&" · odhad: "+mktLabel(mktOf(i)))),
             e("div",{className:"amt num"},fmtMoney(val,cur),
               i.curValue!=null||invMkt(i)?e("small",{className:d>=0?"pos":"neg"},cost?(d>=0?"+":"−")+Math.abs(d/cost*100).toFixed(1).replace(".",",")+" %":(d>=0?"+":"−")+fmtMoney(Math.abs(d),cur)):e("small",null,"zadej hodnotu")));
         })),
-      (data.investments.some(i=>i.currency&&i.currency!=="CZK"))&&e("div",{key:"rate",className:"muted",style:{fontSize:12,margin:"0 4px"}},"Přepočet: 1 € = "+rates.EUR+" Kč, 1 $ = "+rates.USD+" Kč. Kurz změníš v Nastavení."),
+      (data.investments.some(i=>i.currency&&i.currency!=="CZK"))&&e("div",{key:"rate",className:"muted",style:{fontSize:12,margin:"0 4px"}},"Přepočet: 1 € = "+String(rates.EUR).replace(".",",")+" Kč, 1 $ = "+String(rates.USD).replace(".",",")+" Kč"+(liveRate("EUR")?" (aktuální kurz).":". Kurz změníš v Nastavení.")),
       e("div",{key:"hsec",className:"sec"},e("h3",null,"Ostatní")),
       e("div",{key:"house",className:"card"},
         e("button",{className:"linkrow",onClick:()=>setTab("house")},
@@ -1377,7 +1414,8 @@ function App(){
       e("div",{key:"rates",className:"card"},e("div",{className:"two"},
         ...["EUR","USD"].map(c=>e(Field,{key:c,label:"1 "+c+" = Kč"},e(StableInput,{initialValue:String(data.settings.rates[c]).replace(".",","),isAmount:true,
           style:{flex:"1 1 auto",width:"100%",border:"1px solid var(--line)",borderRadius:12,padding:"11px 12px",fontSize:16,background:"var(--bg)",outline:"none"},
-          onCommit:v=>{const n=parseAmt(v);if(n>0)setSettings({rates:{...data.settings.rates,[c]:n}});}}))))),
+          onCommit:v=>{const n=parseAmt(v);if(n>0)setSettings({rates:{...data.settings.rates,[c]:n}});}})))),
+        liveRate("EUR")&&e("div",{className:"muted",style:{fontSize:13,marginTop:8}},"Aplikace teď používá aktuální kurz z trhu. Tyto hodnoty platí, jen dokud se kurz nestáhne.")),
       e("div",{key:"s6",className:"sec"},e("h3",null,"Záloha dat")),
       e("div",{key:"bk",className:"card",style:{display:"flex",flexDirection:"column",gap:10}},
         e("div",{className:"muted",style:{fontSize:14,lineHeight:1.5}},"Data jsou jen v tomto telefonu. Občas si stáhni zálohu, třeba do Souborů nebo na iCloud."),
