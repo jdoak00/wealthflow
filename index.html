@@ -1003,7 +1003,9 @@ function App(){
   const btc=data.settings.btc;
   if(btc&&btc.sats>0)fundIds.push("btc");
   const mktIds=fundIds.length?[...fundIds,"eurczk","usdczk"].sort():[];
-  const mktFrom=data.investments.filter(i=>mktOf(i)).map(i=>i.curValue!=null&&i.curDate?i.curDate:i.date).sort()[0]||isoDate(new Date(Date.now()-14*864e5));
+  // Data od nejstaršího nákupu, nejpozději ale od začátku minulého měsíce (kvůli pohybu od začátku měsíce).
+  const prevMonth1=isoDate(new Date(new Date().getFullYear(),new Date().getMonth()-1,1));
+  const mktFrom=[...data.investments.filter(i=>mktOf(i)).map(i=>i.curValue!=null&&i.curDate?i.curDate:i.date),prevMonth1].sort()[0];
   useEffect(()=>{
     if(!mktIds.length)return;
     function load(){
@@ -1068,22 +1070,27 @@ function App(){
     return (i.currency||"CZK")==="CZK"?Math.round(v):Math.round(v*100)/100;
   };
   const invVal=i=>{const v=invEst(i);return v!=null?v:invManual(i);};
-  // Změna za poslední obchodní den titulu (u nákupu z toho dne nula).
-  const invDay=i=>{
-    const m=invMkt(i);if(!m||m.c.length<2)return 0;
-    const n=m.c.length;
-    if(invBaseDate(i)>=m.d[n-1])return 0;
-    return invAt(i,m,m.d[n-1])-invAt(i,m,m.d[n-2]);
-  };
+  // Pohyb od začátku měsíce: každý měsíc začíná od nuly. Výchozí bod = poslední uzávěrka před 1. dnem měsíce
+  // (u nákupu z tohoto měsíce den nákupu). Počítá se v Kč včetně změny kurzu.
+  const monthStart=isoDate(new Date(now.getFullYear(),now.getMonth(),1));
+  const prevMonthEnd=isoDate(new Date(now.getFullYear(),now.getMonth(),0));
+  const toCZK=(cur,day)=>{if(cur==="CZK")return 1;const f=fxSer(cur);return f?closeAt(f,day):(rates[cur]||1);};
+  const invCZKAt=(i,m,day)=>invAt(i,m,day)*toCZK(i.currency||"CZK",day);
   const tracked=data.investments.filter(i=>invMkt(i));
-  const dayCZK=Math.round(tracked.reduce((s,i)=>s+invDay(i)*(rates[i.currency||"CZK"]||1),0));
-  const dayBase=tracked.reduce((s,i)=>s+invVal(i)*(rates[i.currency||"CZK"]||1),0)-dayCZK;
-  const mktLast=tracked.map(i=>invMkt(i).d[invMkt(i).d.length-1]).sort().pop();
-  // Řádek do zeleného rámečku majetku (Přehled i Majetek).
-  const dayLine=tracked.length>0&&e("span",{key:"day",className:"num",style:{fontSize:16,color:"var(--brand-sub)"}},
-    (mktLast?parseISO(mktLast).toLocaleDateString("cs-CZ",{weekday:"short",day:"numeric",month:"numeric"}):"")+": ",
-    e("b",{style:{color:"var(--brand-fg)"}},(dayCZK>=0?"▲ +":"▼ −")+fmtCZK(Math.abs(dayCZK))+(dayBase?" ("+(dayCZK>=0?"+":"−")+Math.abs(dayCZK/dayBase*100).toFixed(1).replace(".",",")+" %)":"")),
-    " · odhad");
+  let mtdNow=0,mtdStart=0;
+  tracked.forEach(i=>{
+    const m=invMkt(i),last=m.d[m.d.length-1],bd=invBaseDate(i);
+    mtdNow+=invCZKAt(i,m,last);
+    mtdStart+=invCZKAt(i,m,bd>prevMonthEnd?bd:prevMonthEnd);
+  });
+  const mtdCZK=Math.round(mtdNow-mtdStart);
+  // Řádek do zeleného rámečku na Domů: „Investice ▲ +1 234 Kč (+0,9 %)“ (nad řádky je „Od 1. 11.“).
+  function moveLine(key,label,chg,base){
+    return e("span",{key,className:"num",style:{fontSize:16,color:"var(--brand-sub)",whiteSpace:"nowrap"}},
+      label+" ",
+      e("b",{style:{color:"var(--brand-fg)"}},(chg>=0?"▲ +":"▼ −")+fmtCZK(Math.abs(chg))+(base?" ("+(chg>=0?"+":"−")+Math.abs(chg/base*100).toFixed(1).replace(".",",")+" %)":"")));
+  }
+  const dayLine=tracked.length>0&&moveLine("mtd","Investice",mtdCZK,mtdStart);
   // Rozbalovací řádky (Domů i Majetek): vidět je název a částka, podřádek až po klepnutí.
   // rows = [klíč, ikona, barva, název, podřádek, částka, malý text pod částkou]
   function foldRows(rows){
@@ -1134,6 +1141,9 @@ function App(){
   const btcSer=mkt&&mkt.markets.btc&&mkt.markets.btc.c.length?mkt.markets.btc:null;
   const btcCZK=btc&&btc.sats>0&&btcSer?Math.round(btc.sats/1e8*btcSer.c[btcSer.c.length-1]*rates.EUR):0;
   const btcUSD=btcCZK&&rates.USD?Math.round(btcCZK/rates.USD):0;
+  // Bitcoin od začátku měsíce: stejný počet satoshi, cena a kurz na konci minulého měsíce.
+  const btcStart=btcCZK?btc.sats/1e8*closeAt(btcSer,prevMonthEnd)*toCZK("EUR",prevMonthEnd):0;
+  const btcLine=btcCZK>0&&moveLine("btcmtd","Bitcoin",Math.round(btcCZK-btcStart),btcStart);
   const total=cash+invTotalCZK+btcCZK;
   function byCat(list,type){
     const m={};list.filter(t=>t.type===type).forEach(t=>{m[t.category]=(m[t.category]||0)+t.amount;});
@@ -1276,8 +1286,10 @@ function App(){
       e("div",{key:"hero",className:"hero"},
         e("span",{className:"lbl"},"Čistý majetek celkem"),
         e("span",{className:"big num"},bal?fmtCZK(total):"—"),
-        data.investments.length>0&&e("span",{className:"gold num",style:{fontSize:16}},"Investice "+(pl>=0?"+":"−")+fmtCZK(Math.abs(pl))+(invCostCZK?" ("+(pl>=0?"+":"−")+Math.abs(pl/invCostCZK*100).toFixed(1).replace(".",",")+" %)":"")),
-        dayLine),
+        // Mezera místo popisku – řádky níže jsou pohyb od 1. dne měsíce.
+        (dayLine||btcLine)&&e("span",{"aria-hidden":"true",style:{height:18,marginTop:6}}),
+        dayLine,
+        btcLine),
       e("div",{key:"assets",className:"card flush"},
         ...foldRows([
           ["h_cash","wallet","#3F8A4F","Peníze na účtech",bal?"stav k "+parseISO(bal.date).toLocaleDateString("cs-CZ")+" + pohyby od té doby":"stav zadáš v Nastavení",bal?fmtCZK(cash):"",null],
