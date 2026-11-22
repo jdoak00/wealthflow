@@ -802,13 +802,18 @@ function HouseSheet({row,onSave,onDelete,onClose}){
 }
 
 // Bitcoin: kolik satoshi uživatel právě má (1 BTC = 100 000 000 sat). Hodnota se počítá z aktuální ceny.
-function BtcSheet({btc,onSave,onClose}){
+// „Celkem vloženo“ je základ zadaný ručně; platby s poznámkou Bitcoin zapsané potom se přičítají samy (added).
+function BtcSheet({btc,added,onSave,onClose}){
   const [v,setV]=useState(btc&&btc.sats?String(btc.sats):"");
+  const [cost,setCost]=useState(btc&&btc.costCZK?String(btc.costCZK):"");
   const [err,setErr]=useState("");
   function save(){
     const n=Math.round(parseAmt(v));
     if(!(n>=0)||String(v).trim()===""){setErr("Zadej počet satoshi.");return;}
-    onSave({sats:n,date:todayISO()});
+    const c=parseAmt(cost)>0?Math.round(parseAmt(cost)):undefined;
+    // Když se změní vložená částka, platby se dál přičítají až od teď.
+    const costAt=c===(btc&&btc.costCZK)&&btc&&btc.costAt?btc.costAt:(c?Date.now():undefined);
+    onSave({sats:n,date:todayISO(),costCZK:c,costAt});
   }
   return e(Sheet,{title:"Kolik máš Bitcoinu?",onClose,footer:e("button",{className:"btn",onClick:save},"Uložit")},
     e("div",{className:"muted",style:{fontSize:14,lineHeight:1.5}},"Zadej přesný počet satoshi, které teď máš (najdeš ho na burze). Hodnotu v Kč aplikace počítá z aktuální ceny Bitcoinu."),
@@ -816,6 +821,9 @@ function BtcSheet({btc,onSave,onClose}){
       e("input",{id:"btc-sats",type:"text",inputMode:"numeric",placeholder:"0",value:v,"aria-label":"Počet satoshi",style:{width:Math.max(1,v.length)+0.6+"ch"},onChange:ev=>{setV(ev.target.value);setErr("");}}),
       e("span",null,"sat")),err&&e("div",{className:"err"},err)),
     parseAmt(v)>0&&e("div",{className:"muted num",style:{fontSize:13,textAlign:"center"}},"= "+(parseAmt(v)/1e8).toLocaleString("cs-CZ",{maximumFractionDigits:8})+" BTC"),
+    e(Field,{label:"Celkem vloženo (Kč)"},e("input",{className:"inp num",id:"btc-cost",inputMode:"decimal",placeholder:"nevyplněno",value:cost,onChange:ev=>setCost(ev.target.value)})),
+    e("div",{className:"muted",style:{fontSize:13,lineHeight:1.45}},"Kolik jsi za Bitcoin celkem zaplatil. Platby s poznámkou „Bitcoin“, které zapíšeš potom, se k této částce přičtou samy. Z výsledku se počítá zisk v Majetku."),
+    added>0&&e("div",{className:"muted num",style:{fontSize:13}},"Od zadání přibylo z plateb: +"+fmtCZK(added)+" (celkem "+fmtCZK((btc.costCZK||0)+added)+")"),
     btc&&btc.date&&e("div",{className:"muted",style:{fontSize:13}},"Naposledy zadáno "+parseISO(btc.date).toLocaleDateString("cs-CZ")+": "+Number(btc.sats).toLocaleString("cs-CZ")+" sat"));
 }
 
@@ -1104,9 +1112,14 @@ function App(){
     }).filter(Boolean);
   }
   // Bitcoin je vždy vidět; podřádek: satoshi a cena v USD.
-  const btcRow=k=>[k,"currency-btc","#C27A1A","Bitcoin",
-    btc&&btc.sats>0?Number(btc.sats).toLocaleString("cs-CZ")+" sat"+(btcSer?" · "+fmtMoney(btcUSD,"USD"):""):"Počet satoshi zadáš v Nastavení → Bitcoin.",
-    btc&&btc.sats>0?(btcSer?fmtCZK(btcCZK):"…"):e("span",{className:"muted",style:{fontWeight:500}},"nezadáno"),null];
+  // withGain: v Majetku pod částkou zisk oproti vložené částce (stejně jako u Investic).
+  const btcRow=(k,withGain)=>{
+    const c=btcCost,g=btcCZK-(c||0);
+    return [k,"currency-btc","#C27A1A","Bitcoin",
+      btc&&btc.sats>0?Number(btc.sats).toLocaleString("cs-CZ")+" sat"+(btcSer?" · "+fmtMoney(btcUSD,"USD"):"")+(c?" · vloženo "+fmtCZK(c):""):"Počet satoshi zadáš v Nastavení → Bitcoin.",
+      btc&&btc.sats>0?(btcSer?fmtCZK(btcCZK):"…"):e("span",{className:"muted",style:{fontWeight:500}},"nezadáno"),
+      withGain&&c&&btcCZK?e("small",{className:g>=0?"pos":"neg"},(g>=0?"+":"−")+fmtCZK(Math.abs(g))+" ("+(g>=0?"+":"−")+Math.abs(g/c*100).toFixed(1).replace(".",",")+" %)"):null];
+  };
   const invCZK=i=>invVal(i)*(rates[i.currency||"CZK"]||1);
   // Nákup v Kč: u pozic z XTB podle kurzu ze dne nákupu, jinak současným kurzem.
   const invCostK=i=>i.costCZK!=null?Number(i.costCZK):invCost(i)*(rates[i.currency||"CZK"]||1);
@@ -1141,6 +1154,11 @@ function App(){
   const btcSer=mkt&&mkt.markets.btc&&mkt.markets.btc.c.length?mkt.markets.btc:null;
   const btcCZK=btc&&btc.sats>0&&btcSer?Math.round(btc.sats/1e8*btcSer.c[btcSer.c.length-1]*rates.EUR):0;
   const btcUSD=btcCZK&&rates.USD?Math.round(btcCZK/rates.USD):0;
+  // Vloženo do Bitcoinu = ručně zadaný základ + výdaje s poznámkou „Bitcoin“ zapsané po jeho zadání.
+  const btcAdded=btc&&btc.costCZK&&btc.costAt?data.transactions
+    .filter(t=>t.type==="expense"&&/bitcoin/i.test(t.note||"")&&t.created&&t.created>btc.costAt)
+    .reduce((s,t)=>s+(Number(t.amount)||0),0):0;
+  const btcCost=btc&&btc.costCZK?btc.costCZK+btcAdded:0;
   // Bitcoin od začátku měsíce: stejný počet satoshi, cena a kurz na konci minulého měsíce.
   const btcStart=btcCZK?btc.sats/1e8*closeAt(btcSer,prevMonthEnd)*toCZK("EUR",prevMonthEnd):0;
   const btcLine=btcCZK>0&&moveLine("btcmtd","Bitcoin",Math.round(btcCZK-btcStart),btcStart);
@@ -1447,8 +1465,8 @@ function App(){
       e("div",{key:"cash",className:"card flush"},...foldRows([
         ["_cash","wallet","#3F8A4F","Peníze na účtech",bal?"stav k "+parseISO(bal.date).toLocaleDateString("cs-CZ")+" + pohyby od té doby":"stav zadáš v Nastavení",fmtCZK(cash),null],
         data.investments.length>0&&["_inv","coins","#2E6F8E","Investice",fTot.length?fTot.map(x=>fmtMoney(x.v,x.c)).join(" · "):"nákup "+fmtCZK(invCostCZK),fmtCZK(invTotalCZK),
-          invCostCZK?e("small",{className:pl>=0?"pos":"neg"},(pl>=0?"+":"−")+fmtCZK(Math.abs(pl))):null],
-        btcRow("_btc"),
+          invCostCZK?e("small",{className:pl>=0?"pos":"neg"},(pl>=0?"+":"−")+fmtCZK(Math.abs(pl))+" ("+pct(invTotalCZK,invCostCZK)+")"):null],
+        btcRow("_btc",true),
       ])),
       e("div",{key:"isec",className:"sec"},e("h3",null,"Portfolio"),e("button",{onClick:()=>setSheet({k:"inv"})},"+ Přidat")),
       e("div",{key:"inv",className:"card flush"},
@@ -1581,7 +1599,7 @@ function App(){
     sheet&&sheet.k==="cat"&&e(CatSheet,{cat:sheet.cat||null,isNew:!!sheet.isNew,newType:sheet.newType,onClose:closeSheet,onSave:v=>saveCat(sheet.cat,v,!!sheet.isNew,sheet.newType),onReset:()=>resetCat(sheet.cat)}),
     sheet&&sheet.k==="house"&&e(HouseSheet,{row:sheet.row||null,onClose:closeSheet,onSave:v=>saveHouse(sheet.row||null,v),
       onDelete:r=>{removeHouse(r.id);closeSheet();setToast("Smazáno");}}),
-    sheet&&sheet.k==="btc"&&e(BtcSheet,{btc,onClose:closeSheet,
+    sheet&&sheet.k==="btc"&&e(BtcSheet,{btc,added:btcAdded,onClose:closeSheet,
       onSave:b=>{setSettings({btc:b});closeSheet();setToast("Bitcoin uložen");}}),
     sheet&&sheet.k==="bal"&&e(BalanceSheet,{bal,current:cash,onClose:closeSheet,
       onSave:b=>{setSettings({balance:b});closeSheet();setToast("Stav peněz uložen");}})
