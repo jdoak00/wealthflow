@@ -9,6 +9,7 @@ const MARKETS={
   sofi:"SOFI",       // SoFi Technologies (USD)
   nu:"NU",           // Nu Holdings (USD)
   att:"T",           // AT&T (USD)
+  btc:"BTC-EUR",     // Bitcoin (EUR)
   eurczk:"EURCZK=X", // kurz EUR → CZK
   usdczk:"USDCZK=X", // kurz USD → CZK
 };
