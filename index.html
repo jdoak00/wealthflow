@@ -374,6 +374,8 @@ const MARKETS=[
   {id:"sofi",label:"SoFi",cur:"USD",re:/sofi/i},
   {id:"nu",label:"Nu Holdings",cur:"USD",re:/(^|[^a-zá-ž])nu([^a-zá-ž]|$)/i},
   {id:"att",label:"AT&T",cur:"USD",re:/at\s*&\s*t|at\s*and\s*t/i},
+  // CSG N.V. – sleduje se kotace z Amsterdamu v €; nákup zapsaný v Kč se přepočte i o kurz eura.
+  {id:"csg",label:"CSG",cur:"EUR",re:/(^|[^a-zá-ž])csg([^a-zá-ž]|$)|czechoslovak/i},
 ];
 const FX_ID={EUR:"eurczk",USD:"usdczk"};
 // Nákupní cena pozic převzatých z výpisů XTB (21. 11. 2026) v Kč – součet nákupů × kurz ze dne nákupu.
@@ -1294,8 +1296,6 @@ function App(){
     const cInc=sumOf(cur,"income"),cExp=sumOf(cur,"expense");
     const pl=invTotalCZK-invCostCZK;
     const rules=[...data.recurring].sort((a,b)=>a.day-b.day);
-    const recE=rules.filter(r=>r.active&&r.type==="expense").reduce((s,r)=>s+r.amount,0);
-    const recI=rules.filter(r=>r.active&&r.type==="income").reduce((s,r)=>s+r.amount,0);
     const plain=(key,icon,color,ttl,sub,amt,cls)=>e("div",{key,className:"row"},
       e("span",{className:"cic",style:{"--c":color,width:38,height:38}},e(Icon,{n:icon,size:21})),
       e("div",{className:"main"},e("div",{className:"ttl"},ttl),sub&&e("div",{className:"sub"},sub)),
@@ -1321,8 +1321,7 @@ function App(){
       e("div",{key:"rec",className:"card flush"},
         e("button",{className:"fold","aria-expanded":openRec,onClick:()=>setOpenRec(o=>!o)},
           e("span",{className:"cic",style:{"--c":"#1F3B2D",width:38,height:38}},e(Icon,{n:"arrows-clockwise",size:20})),
-          e("span",{className:"main"},"Pravidelné platby",e("span",{className:"muted num",style:{display:"block",fontSize:12,fontWeight:500}},
-            rules.length?"příjmy +"+fmtCZK(recI)+" · výdaje −"+fmtCZK(recE)+" měsíčně":"zatím žádné")),
+          e("span",{className:"main"},"Pravidelné platby"),
           e(Caret,{open:openRec})),
         ...(openRec?[
           ...rules.map(r=>{const c=catById(r.category,cfg);return e("button",{key:r.id,className:"row",style:{opacity:r.active?1:.5},onClick:()=>setSheet({k:"rule",rule:r})},
@@ -1482,7 +1481,6 @@ function App(){
               g.unknown?e("small",null,"zadej hodnotu"):g.cost?e("small",{className:g.czk>=g.cost?"pos":"neg"},pct(g.czk,g.cost)):null)),
             ...(open?[det&&e("div",{key:g.key+"-d",className:"muted num",style:{fontSize:13,padding:"0 0 8px 54px"}},det),...g.items.map(itemRow)].filter(Boolean):[])];
         })),
-      fTot.length>0&&e("div",{key:"rate",className:"muted",style:{fontSize:12,margin:"0 4px"}},"Přepočet aktuálním kurzem: 1 € = "+String(rates.EUR).replace(".",",")+" Kč, 1 $ = "+String(rates.USD).replace(".",",")+" Kč."),
       e("div",{key:"hsec",className:"sec"},e("h3",null,"Ostatní")),
       e("div",{key:"house",className:"card"},
         e("button",{className:"linkrow",onClick:()=>setTab("house")},
@@ -1547,6 +1545,12 @@ function App(){
         e(Icon,{n:"wallet",size:22}),e("span",{className:"main"},"Aktuální stav peněz"),e("span",{className:"num muted",style:{fontSize:14}},bal?fmtCZK(cash):"nezadáno"),e(Icon,{n:"caret-right",size:16})),
         e("button",{className:"setrow",onClick:()=>setSheet({k:"btc"})},
           e(Icon,{n:"currency-btc",size:22}),e("span",{className:"main"},"Bitcoin"),e("span",{className:"num muted",style:{fontSize:14}},btc&&btc.sats>0?Number(btc.sats).toLocaleString("cs-CZ")+" sat":"nezadáno"),e(Icon,{n:"caret-right",size:16}))),
+      // Kurzy, kterými se přepočítávají investice (stahují se samy; jen pro informaci).
+      e("div",{key:"s5",className:"sec"},e("h3",null,"Kurzy")),
+      e("div",{key:"fx",className:"card flush"},
+        ...[["EUR","1 €"],["USD","1 $"]].map(([c,l])=>{const s=fxSer(c);
+          return e("div",{key:c,className:"setrow"},e("span",{className:"main"},l),
+            e("span",{className:"num muted",style:{fontSize:14}},String(rates[c]).replace(".",",")+" Kč"+(s?" · k "+parseISO(s.d[s.d.length-1]).toLocaleDateString("cs-CZ",{day:"numeric",month:"numeric"}):" · zatím nestaženo")));})),
       e("div",{key:"s6",className:"sec"},e("h3",null,"Záloha dat")),
       e("div",{key:"bk",className:"card",style:{display:"flex",flexDirection:"column",gap:10}},
         e("div",{className:"muted",style:{fontSize:14,lineHeight:1.5}},"Data jsou jen v tomto telefonu. Občas si stáhni zálohu, třeba do Souborů nebo na iCloud."),
